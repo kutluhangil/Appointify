@@ -1,73 +1,102 @@
-# Welcome to your Lovable project
+# Appointify
 
-## Project info
+> **Premium randevu yönetimi & müşteri portalı** — kuaför, dövme stüdyosu, diyetisyen, güzellik salonu, fizyoterapist ve benzeri hizmet sağlayıcıları için tasarlanmış SaaS platformu.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+---
 
-## How can I edit this code?
+## Tech stack
 
-There are several ways of editing your application.
+- **React 18** + **TypeScript** + **Vite**
+- **Tailwind CSS** + **shadcn/ui** + **Radix UI** primitives
+- **Framer Motion** — premium sayfa & mikro-etkileşimler
+- **Supabase** — Auth + Postgres + Storage + Realtime + RLS
+- **TanStack Query** — server state caching
+- **react-i18next** — TR/EN tam çeviri
+- **Recharts** — dashboard grafikleri
+- **Zustand** — client UI state
+- **Zod** + **react-hook-form** — form validation
 
-**Use Lovable**
+## Özellikler
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- 🗓️ Çoklu personel takvimi (gün / hafta / ay)
+- 🔗 Public booking sayfası — `/book/:slug`
+- 🔔 Otomatik onay + 24h / 2h hatırlatmaları
+- 💳 Stripe (global) + Iyzico (TR) çift ödeme altyapısı
+- 💼 4 plan: Solo / Team / Business / Enterprise (TRY + USD)
+- 🌍 Tam i18n: Türkçe + İngilizce
+- 🎨 Premium koyu tema + Satoshi/General Sans + grain overlay + cursor glow
+- 🛡️ Row Level Security ile multi-tenant izolasyon
 
-Changes made via Lovable will be committed automatically to this repo.
+## Hızlı başlangıç
 
-**Use your preferred IDE**
+```bash
+# Bağımlılıklar
+npm install
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+# Geliştirme sunucusu
+npm run dev          # → http://localhost:8080
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+# Production build
+npm run build
+npm run preview
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Type check & lint
+npm run type-check
+npm run lint
 ```
 
-**Edit a file directly in GitHub**
+## Ortam değişkenleri
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+`.env` dosyası oluşturun (`.env.example` şablonu mevcut):
 
-**Use GitHub Codespaces**
+```env
+VITE_SUPABASE_URL="https://xxxxx.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY="eyJhbG..."
+VITE_SUPABASE_PROJECT_ID="xxxxx"
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Vercel deploy
 
-## What technologies are used for this project?
+Bu proje Vercel için hazır. `vercel.json` SPA fallback'ini içerir:
 
-This project is built with:
+```bash
+# Vercel CLI ile
+npx vercel
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+# veya GitHub'a push edin → Vercel projesi bağlayın
+# Ortam değişkenlerini Vercel Dashboard → Settings → Environment Variables üzerinden ekleyin
+```
 
-## How can I deploy this project?
+## Veritabanı
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Supabase migration'ları `supabase/migrations/` altındadır. Lokal Supabase CLI ile uygulamak için:
 
-## Can I connect a custom domain to my Lovable project?
+```bash
+npx supabase link --project-ref <project-id>
+npx supabase db push
+```
 
-Yes, you can!
+## Klasör yapısı
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+```
+src/
+├── components/        # Layout + UI + premium FX
+│   ├── fx/            # GrainOverlay, CursorGlow, GlassCard, ScrollReveal…
+│   ├── layout/        # DashboardLayout, Sidebar, TopBar, MobileNav
+│   └── ui/            # shadcn primitives
+├── contexts/          # AuthContext (tenant + profile aware)
+├── hooks/             # useAppointments, useCustomers, …
+├── integrations/
+│   └── supabase/      # client + types
+├── lib/               # i18n, motion presets, utils
+├── locales/           # tr/, en/ — namespace bazlı JSON
+├── pages/             # Landing, Auth, Dashboard, Appointments, …
+└── index.css          # Design tokens (CSS variables)
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+supabase/
+└── migrations/        # 14 migration: tenants → activity_log + RLS + functions
+```
+
+## Lisans
+
+Özel — © Appointify
