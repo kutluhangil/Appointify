@@ -2,13 +2,9 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
-import {
-  Plus, CalendarDays, Users, TrendingUp, Clock,
-  CheckCircle2, XCircle, AlertCircle, ArrowRight,
-} from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { Plus, CalendarDays, Users, TrendingUp, Clock, ArrowRight } from "lucide-react";
 import {
   sampleAppointments, sampleCustomers, sampleStaff, sampleServices, sampleStats,
   type SampleAppointmentStatus,

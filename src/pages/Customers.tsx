@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Search, Plus, Phone, Mail, Star, TrendingUp, CalendarDays, AlertTriangle } from "lucide-react";
 import { sampleCustomers, sampleAppointments, sampleServices, sampleStaff } from "@/lib/sample-data";

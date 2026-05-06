@@ -2,20 +2,16 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  Plus, Search, CalendarDays, Clock, User, Scissors,
-  CheckCircle2, XCircle, AlertCircle, Phone, Mail, ChevronLeft, ChevronRight,
-} from "lucide-react";
+import { Plus, Search, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   sampleAppointments, sampleCustomers, sampleStaff, sampleServices,
   type SampleAppointmentStatus,
 } from "@/lib/sample-data";
-import { formatCurrency, formatTime, formatDateLong } from "@/lib/format";
+import { formatCurrency, formatTime } from "@/lib/format";
 import { format, addDays, subDays, startOfWeek } from "date-fns";
 import { tr } from "date-fns/locale";
 
