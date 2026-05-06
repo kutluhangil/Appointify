@@ -5,451 +5,389 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
-  User, Building2, Users, Bell, Settings as SettingsIcon,
-  Mail, Trash2, Shield, Send, AlertTriangle, Loader2, Camera
+  User, Building2, Bell, Clock, Loader2, Camera, CalendarDays, Link,
 } from "lucide-react";
+import { initials } from "@/lib/format";
 
-// ─── Profile Tab ────────────────────────────────────────────────────────────────
+// ─── Profile Tab ─────────────────────────────────────────────────────────────
 
 function ProfileTab() {
   const { user, profile, refreshProfile } = useAuth();
-  const [fullName, setFullName] = useState("");
-  const [jobTitle, setJobTitle] = useState("");
+  const [fullName, setFullName] = useState(profile?.full_name || "");
   const [saving, setSaving] = useState(false);
   const [newPassword, setNewPassword] = useState("");
-  const [changingPassword, setChangingPassword] = useState(false);
+  const [changingPw, setChangingPw] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  useEffect(() => { if (profile) setFullName(profile.full_name || ""); }, [profile]);
+
+  const userInitials = initials(fullName || "U");
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    if (!allowedTypes.includes(file.type)) {
-      toast({ title: "Invalid file type", description: "Please upload a JPG, PNG, WebP, or GIF image.", variant: "destructive" });
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      toast({ title: "Geçersiz dosya türü", variant: "destructive" });
       return;
     }
-
-    const maxSize = 5 * 1024 * 1024; // 5 MB
-    if (file.size > maxSize) {
-      toast({ title: "File too large", description: "Avatar must be under 5 MB.", variant: "destructive" });
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Dosya çok büyük (max 5MB)", variant: "destructive" });
       return;
     }
-
-    const allowedExts = ["jpg", "jpeg", "png", "webp", "gif"];
-    const fileExt = (file.name.split(".").pop() || "").toLowerCase();
-    if (!allowedExts.includes(fileExt)) {
-      toast({ title: "Invalid file extension", description: "Please upload a JPG, PNG, WebP, or GIF image.", variant: "destructive" });
-      return;
-    }
-
     setUploadingAvatar(true);
-    const filePath = `${user.id}/avatar.${fileExt}`;
-    const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file, { upsert: true });
-    if (uploadError) { toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" }); setUploadingAvatar(false); return; }
-    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath);
-    const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-    const { error: updateError } = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("user_id", user.id);
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/avatar.${ext}`;
+    const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (upErr) { toast({ title: "Yükleme başarısız", description: upErr.message, variant: "destructive" }); setUploadingAvatar(false); return; }
+    const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+    const url = `${data.publicUrl}?t=${Date.now()}`;
+    await supabase.from("profiles").update({ avatar_url: url }).eq("user_id", user.id);
+    await refreshProfile();
+    toast({ title: "Profil fotoğrafı güncellendi" });
     setUploadingAvatar(false);
-    if (updateError) toast({ title: "Error", description: updateError.message, variant: "destructive" });
-    else { toast({ title: "Avatar updated" }); await refreshProfile(); }
   };
 
-  useEffect(() => {
-    if (profile) { setFullName(profile.full_name || ""); setJobTitle(profile.job_title || ""); }
-  }, [profile]);
-
-  const initials = fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
-
-  const handleSaveProfile = async () => {
+  const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({ full_name: fullName, job_title: jobTitle }).eq("user_id", user.id);
+    const { error } = await supabase.from("profiles").update({ full_name: fullName }).eq("user_id", user.id);
     setSaving(false);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Profile updated" }); await refreshProfile(); }
+    if (error) toast({ title: "Hata", description: error.message, variant: "destructive" });
+    else { toast({ title: "Profil güncellendi" }); await refreshProfile(); }
   };
 
-  const handleChangePassword = async () => {
-    if (!newPassword || newPassword.length < 6) { toast({ title: "Error", description: "Password must be at least 6 characters.", variant: "destructive" }); return; }
-    setChangingPassword(true);
+  const handleChangePw = async () => {
+    if (newPassword.length < 6) { toast({ title: "Şifre en az 6 karakter olmalı", variant: "destructive" }); return; }
+    setChangingPw(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setChangingPassword(false);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Password updated" }); setNewPassword(""); }
+    setChangingPw(false);
+    if (error) toast({ title: "Hata", description: error.message, variant: "destructive" });
+    else { toast({ title: "Şifre güncellendi" }); setNewPassword(""); }
   };
 
   return (
     <div className="divide-y divide-border">
-      <div className="px-4 md:px-6 py-4">
-        <p className="text-[12px] text-muted-foreground font-medium mb-3">Profile Information</p>
-        <div className="flex items-center gap-3 mb-4">
+      <div className="px-4 md:px-6 py-5">
+        <p className="text-[12px] text-muted-foreground font-medium uppercase tracking-wider mb-4">Profil Bilgileri</p>
+        <div className="flex items-center gap-3 mb-5">
           <div className="relative group">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={profile?.avatar_url || ""} className="object-contain" />
-              <AvatarFallback className="text-[12px]">{initials || "?"}</AvatarFallback>
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={profile?.avatar_url || ""} className="object-cover" />
+              <AvatarFallback className="text-[13px]">{userInitials}</AvatarFallback>
             </Avatar>
-            <label htmlFor="avatar-upload" className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+            <label className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
               {uploadingAvatar ? <Loader2 className="h-3.5 w-3.5 animate-spin text-white" /> : <Camera className="h-3.5 w-3.5 text-white" />}
+              <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
             </label>
-            <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
           </div>
           <div>
-            <p className="text-[13px] font-medium">{fullName || "Your Name"}</p>
+            <p className="text-[14px] font-medium">{fullName || "Kullanıcı"}</p>
             <p className="text-[12px] text-muted-foreground">{user?.email}</p>
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 max-w-lg">
-          <div className="space-y-1">
-            <Label className="text-[12px]">Full Name</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Doe" className="h-8 text-[13px]" />
+        <div className="max-w-sm space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-[12px]">Ad Soyad</Label>
+            <Input value={fullName} onChange={e => setFullName(e.target.value)} className="h-9 text-[13px]" />
           </div>
-          <div className="space-y-1">
-            <Label className="text-[12px]">Job Title</Label>
-            <Input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Software Engineer" className="h-8 text-[13px]" />
+          <div className="space-y-1.5">
+            <Label className="text-[12px]">E-posta</Label>
+            <Input value={user?.email || ""} disabled className="h-9 text-[13px] opacity-60" />
           </div>
         </div>
-        <Button onClick={handleSaveProfile} disabled={saving} size="sm" className="h-7 text-[12px] mt-3">
-          {saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />} Save
+        <Button onClick={handleSave} disabled={saving} size="sm" className="h-8 text-[12px] mt-4">
+          {saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />} Kaydet
         </Button>
       </div>
 
-      <div className="px-4 md:px-6 py-4">
-        <p className="text-[12px] text-muted-foreground font-medium mb-3">Change Password</p>
-        <div className="max-w-xs space-y-1">
-          <Label className="text-[12px]">New Password</Label>
-          <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" className="h-8 text-[13px]" />
+      <div className="px-4 md:px-6 py-5">
+        <p className="text-[12px] text-muted-foreground font-medium uppercase tracking-wider mb-4">Şifre Değiştir</p>
+        <div className="max-w-xs space-y-1.5">
+          <Label className="text-[12px]">Yeni Şifre</Label>
+          <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" className="h-9 text-[13px]" />
         </div>
-        <Button onClick={handleChangePassword} disabled={changingPassword} variant="outline" size="sm" className="h-7 text-[12px] mt-3">
-          {changingPassword && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />} Update Password
+        <Button onClick={handleChangePw} disabled={changingPw} variant="outline" size="sm" className="h-8 text-[12px] mt-4">
+          {changingPw && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />} Şifreyi Güncelle
         </Button>
       </div>
     </div>
   );
 }
 
-// ─── Company Tab ────────────────────────────────────────────────────────────────
+// ─── Business Tab ────────────────────────────────────────────────────────────
 
-function CompanyTab() {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ company_name: "", company_website: "", industry: "", company_size: "", address: "", phone: "" });
-  const [existingId, setExistingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("company_settings").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
-      if (data) { setForm({ company_name: data.company_name || "", company_website: data.company_website || "", industry: data.industry || "", company_size: data.company_size || "", address: data.address || "", phone: data.phone || "" }); setExistingId(data.id); }
-      setLoading(false);
-    });
-  }, [user]);
-
-  const handleSave = async () => {
-    if (!user) return;
-    setSaving(true);
-    if (existingId) {
-      const { error } = await supabase.from("company_settings").update(form).eq("id", existingId);
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" }); else toast({ title: "Company settings saved" });
-    } else {
-      const { data, error } = await supabase.from("company_settings").insert({ ...form, user_id: user.id }).select().single();
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" }); else { setExistingId(data.id); toast({ title: "Company settings created" }); }
-    }
-    setSaving(false);
-  };
-
-  const update = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
-
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>;
+function BusinessTab() {
+  const [form, setForm] = useState({
+    name: "Demo Kuaför",
+    slug: "demo-kuafor",
+    industry: "barber",
+    phone: "+90 212 555 0000",
+    email: "info@demokuafor.com",
+    address: "Bağcılar, İstanbul",
+    timezone: "Europe/Istanbul",
+    locale: "tr",
+    currency: "TRY",
+  });
 
   return (
-    <div className="px-4 md:px-6 py-4">
-      <p className="text-[12px] text-muted-foreground font-medium mb-3">Company Information</p>
-      <div className="grid gap-3 sm:grid-cols-2 max-w-lg">
-        <div className="space-y-1"><Label className="text-[12px]">Company Name</Label><Input value={form.company_name} onChange={(e) => update("company_name", e.target.value)} placeholder="Acme Inc." className="h-8 text-[13px]" /></div>
-        <div className="space-y-1"><Label className="text-[12px]">Website</Label><Input value={form.company_website} onChange={(e) => update("company_website", e.target.value)} placeholder="https://acme.com" className="h-8 text-[13px]" /></div>
-        <div className="space-y-1"><Label className="text-[12px]">Industry</Label>
-          <Select value={form.industry} onValueChange={(v) => update("industry", v)}><SelectTrigger className="h-8 text-[13px]"><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{["Technology","Healthcare","Finance","Education","Retail","Manufacturing","Other"].map(i => <SelectItem key={i} value={i.toLowerCase()}>{i}</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-1"><Label className="text-[12px]">Company Size</Label>
-          <Select value={form.company_size} onValueChange={(v) => update("company_size", v)}><SelectTrigger className="h-8 text-[13px]"><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{["1-10","11-50","51-200","201-500","501-1000","1000+"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-1 sm:col-span-2"><Label className="text-[12px]">Address</Label><Input value={form.address} onChange={(e) => update("address", e.target.value)} placeholder="123 Main St" className="h-8 text-[13px]" /></div>
-        <div className="space-y-1"><Label className="text-[12px]">Phone</Label><Input value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+1 (555) 000-0000" className="h-8 text-[13px]" /></div>
+    <div className="px-4 md:px-6 py-5 space-y-5">
+      <p className="text-[12px] text-muted-foreground font-medium uppercase tracking-wider">İşletme Bilgileri</p>
+      <div className="grid gap-4 sm:grid-cols-2 max-w-lg">
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">İşletme Adı</Label>
+          <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="h-9 text-[13px]" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Booking URL (slug)</Label>
+          <div className="flex items-center border border-input rounded-md overflow-hidden">
+            <span className="px-2.5 text-[12px] text-muted-foreground border-r border-input bg-muted h-9 flex items-center shrink-0">/book/</span>
+            <Input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} className="h-9 text-[13px] border-0 rounded-none" />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Sektör</Label>
+          <Select value={form.industry} onValueChange={v => setForm(f => ({ ...f, industry: v }))}>
+            <SelectTrigger className="h-9 text-[13px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[
+                ["barber", "Kuaför & Berber"],
+                ["beauty", "Güzellik Salonu"],
+                ["tattoo", "Dövme Stüdyosu"],
+                ["dietitian", "Diyetisyen"],
+                ["physio", "Fizyoterapist"],
+                ["fitness", "Fitness & PT"],
+                ["spa", "Spa & Masaj"],
+                ["other", "Diğer"],
+              ].map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Telefon</Label>
+          <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="h-9 text-[13px]" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">E-posta</Label>
+          <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="h-9 text-[13px]" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Adres</Label>
+          <Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className="h-9 text-[13px]" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Dil</Label>
+          <Select value={form.locale} onValueChange={v => setForm(f => ({ ...f, locale: v }))}>
+            <SelectTrigger className="h-9 text-[13px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tr">Türkçe</SelectItem>
+              <SelectItem value="en">English</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Para Birimi</Label>
+          <Select value={form.currency} onValueChange={v => setForm(f => ({ ...f, currency: v }))}>
+            <SelectTrigger className="h-9 text-[13px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TRY">₺ TRY</SelectItem>
+              <SelectItem value="USD">$ USD</SelectItem>
+              <SelectItem value="EUR">€ EUR</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      <Button onClick={handleSave} disabled={saving} size="sm" className="h-7 text-[12px] mt-3">
-        {saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />} Save
+      <Button size="sm" className="h-8 text-[12px]" onClick={() => toast({ title: "İşletme bilgileri kaydedildi" })}>
+        Kaydet
       </Button>
     </div>
   );
 }
 
-// ─── Team Tab ───────────────────────────────────────────────────────────────────
+// ─── Booking Tab ─────────────────────────────────────────────────────────────
 
-function TeamTab() {
-  const { user } = useAuth();
-  const [members, setMembers] = useState<any[]>([]);
-  const [invitations, setInvitations] = useState<any[]>([]);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<string>("user");
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-
-  const fetchData = async () => {
-    const [teamRes, invitationsRes] = await Promise.all([
-      supabase.rpc("get_team_members"),
-      supabase.from("invitations").select("*").eq("status", "pending"),
-    ]);
-    setMembers(teamRes.data || []);
-    setInvitations(invitationsRes.data || []);
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchData(); }, []);
-
-  const handleInvite = async () => {
-    if (!user || !inviteEmail) return;
-    setSending(true);
-    const { error } = await supabase.from("invitations").insert({ email: inviteEmail, role: inviteRole as any, invited_by: user.id });
-    setSending(false);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Invitation sent", description: `Invited ${inviteEmail}` }); setInviteEmail(""); fetchData(); }
-  };
-
-  const handleRevoke = async (id: string) => {
-    const { error } = await supabase.from("invitations").delete().eq("id", id);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Invitation revoked" }); fetchData(); }
-  };
-
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>;
+function BookingTab() {
+  const [settings, setSettings] = useState({
+    slot_duration: "30",
+    buffer_between: "10",
+    max_advance_days: "60",
+    min_advance_hours: "2",
+    allow_cancellation: true,
+    cancellation_hours: "24",
+    require_deposit: false,
+    deposit_percentage: "25",
+    auto_confirm: true,
+    show_staff_selection: true,
+  });
 
   return (
-    <div className="divide-y divide-border">
-      <div className="px-4 md:px-6 py-4">
-        <p className="text-[12px] text-muted-foreground font-medium mb-3">Invite Team Member</p>
-        <div className="flex gap-2 max-w-lg">
-          <Input placeholder="colleague@company.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="h-8 text-[13px] flex-1" />
-          <Select value={inviteRole} onValueChange={setInviteRole}>
-            <SelectTrigger className="w-[100px] h-8 text-[12px]"><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="user">User</SelectItem><SelectItem value="moderator">Moderator</SelectItem><SelectItem value="admin">Admin</SelectItem></SelectContent>
+    <div className="px-4 md:px-6 py-5 space-y-6">
+      <p className="text-[12px] text-muted-foreground font-medium uppercase tracking-wider">Randevu Ayarları</p>
+
+      <div className="grid gap-4 sm:grid-cols-2 max-w-lg">
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Slot Süresi (dakika)</Label>
+          <Select value={settings.slot_duration} onValueChange={v => setSettings(s => ({ ...s, slot_duration: v }))}>
+            <SelectTrigger className="h-9 text-[13px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {["15","20","30","45","60","90","120"].map(v => <SelectItem key={v} value={v}>{v} dk</SelectItem>)}
+            </SelectContent>
           </Select>
-          <Button onClick={handleInvite} disabled={sending || !inviteEmail} size="sm" className="h-8 text-[12px] gap-1">
-            {sending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />} Invite
-          </Button>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Randevular Arası Ara (dakika)</Label>
+          <Select value={settings.buffer_between} onValueChange={v => setSettings(s => ({ ...s, buffer_between: v }))}>
+            <SelectTrigger className="h-9 text-[13px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {["0","5","10","15","20","30"].map(v => <SelectItem key={v} value={v}>{v} dk</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Maksimum İleri Gün</Label>
+          <Input type="number" value={settings.max_advance_days} onChange={e => setSettings(s => ({ ...s, max_advance_days: e.target.value }))} className="h-9 text-[13px]" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Min. Kaç Saat Önceden</Label>
+          <Input type="number" value={settings.min_advance_hours} onChange={e => setSettings(s => ({ ...s, min_advance_hours: e.target.value }))} className="h-9 text-[13px]" />
         </div>
       </div>
 
-      {invitations.length > 0 && (
-        <div className="px-4 md:px-6 py-4">
-          <p className="text-[12px] text-muted-foreground font-medium mb-3">Pending Invitations</p>
-          <div className="space-y-1">
-            {invitations.map((inv: any) => (
-              <div key={inv.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/30">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-[13px]">{inv.email}</span>
-                  <Badge variant="outline" className="text-[10px] h-4 px-1">{inv.role}</Badge>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => handleRevoke(inv.id)} className="h-6 w-6 p-0">
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
+      <div className="max-w-lg space-y-4">
+        {[
+          { key: "auto_confirm", label: "Otomatik Onay", desc: "Randevuları otomatik onayla" },
+          { key: "show_staff_selection", label: "Personel Seçimi", desc: "Müşterilerin personel seçmesine izin ver" },
+          { key: "allow_cancellation", label: "İptal İzni", desc: "Müşteriler randevusunu iptal edebilir" },
+          { key: "require_deposit", label: "Depozito Gerektir", desc: "Randevu için depozito al" },
+        ].map((item) => (
+          <div key={item.key} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+            <div>
+              <p className="text-[13px] font-medium">{item.label}</p>
+              <p className="text-[12px] text-muted-foreground">{item.desc}</p>
+            </div>
+            <Switch
+              checked={settings[item.key as keyof typeof settings] as boolean}
+              onCheckedChange={v => setSettings(s => ({ ...s, [item.key]: v }))}
+            />
           </div>
+        ))}
+      </div>
+
+      {settings.require_deposit && (
+        <div className="max-w-xs space-y-1.5">
+          <Label className="text-[12px]">Depozito Yüzdesi (%)</Label>
+          <Input type="number" value={settings.deposit_percentage} min={5} max={100} onChange={e => setSettings(s => ({ ...s, deposit_percentage: e.target.value }))} className="h-9 text-[13px]" />
         </div>
       )}
 
-      <div className="px-4 md:px-6 py-4">
-        <p className="text-[12px] text-muted-foreground font-medium mb-3">Team Members · {members.length}</p>
-        <div className="space-y-1">
-          {members.map((m: any) => (
-            <div key={m.user_id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/30">
-              <div className="flex items-center gap-2">
-                <Avatar className="h-5 w-5">
-                  <AvatarImage src={m.avatar_url || ""} />
-                  <AvatarFallback className="text-2xs">{(m.full_name || "?").split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}</AvatarFallback>
-                </Avatar>
-                <span className="text-[13px] font-medium">{m.full_name || "Unnamed"}</span>
-                <span className="text-[12px] text-muted-foreground">{m.job_title || ""}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Badge variant="outline" className="text-[10px] h-4 px-1 gap-0.5">
-                  <Shield className="h-2.5 w-2.5" />{m.role}
-                </Badge>
-                {m.user_id === user?.id && <Badge variant="secondary" className="text-[10px] h-4 px-1">You</Badge>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Button size="sm" className="h-8 text-[12px]" onClick={() => toast({ title: "Randevu ayarları kaydedildi" })}>
+        Kaydet
+      </Button>
     </div>
   );
 }
 
-// ─── Email Tab ──────────────────────────────────────────────────────────────────
+// ─── Notifications Tab ────────────────────────────────────────────────────────
 
-function EmailTab() {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [prefs, setPrefs] = useState({ email_on_new_bug: true, email_on_assignment: true, email_on_status_change: true, email_on_comment: true, email_on_sla_breach: true, daily_digest: false });
-  const [existingId, setExistingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("notification_preferences").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
-      if (data) { setPrefs({ email_on_new_bug: data.email_on_new_bug, email_on_assignment: data.email_on_assignment, email_on_status_change: data.email_on_status_change, email_on_comment: data.email_on_comment, email_on_sla_breach: data.email_on_sla_breach, daily_digest: data.daily_digest }); setExistingId(data.id); }
-      setLoading(false);
-    });
-  }, [user]);
-
-  const handleSave = async () => {
-    if (!user) return;
-    setSaving(true);
-    if (existingId) {
-      const { error } = await supabase.from("notification_preferences").update(prefs).eq("id", existingId);
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" }); else toast({ title: "Preferences saved" });
-    } else {
-      const { data, error } = await supabase.from("notification_preferences").insert({ ...prefs, user_id: user.id }).select().single();
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" }); else { setExistingId(data.id); toast({ title: "Preferences saved" }); }
-    }
-    setSaving(false);
-  };
-
-  const togglePref = (key: keyof typeof prefs) => setPrefs(p => ({ ...p, [key]: !p[key] }));
-
-  const items = [
-    { key: "email_on_new_bug" as const, label: "New Bug Reported" },
-    { key: "email_on_assignment" as const, label: "Bug Assigned to You" },
-    { key: "email_on_status_change" as const, label: "Status Changes" },
-    { key: "email_on_comment" as const, label: "New Comments" },
-    { key: "email_on_sla_breach" as const, label: "SLA Breach Warning" },
-    { key: "daily_digest" as const, label: "Daily Digest" },
-  ];
-
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>;
-
-  return (
-    <div className="divide-y divide-border">
-      <div className="px-4 md:px-6 py-3 flex items-start gap-2 bg-muted/30">
-        <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-        <p className="text-[12px] text-muted-foreground">Email delivery not yet connected. Preferences will take effect once an email provider is configured.</p>
-      </div>
-      <div className="px-4 md:px-6 py-4">
-        <p className="text-[12px] text-muted-foreground font-medium mb-3">Email Notifications</p>
-        <div className="space-y-1">
-          {items.map(item => (
-            <div key={item.key} className="flex items-center justify-between py-2 px-2 rounded hover:bg-muted/30">
-              <span className="text-[13px]">{item.label}</span>
-              <Switch checked={prefs[item.key]} onCheckedChange={() => togglePref(item.key)} className="scale-90" />
-            </div>
-          ))}
-        </div>
-        <Button onClick={handleSave} disabled={saving} size="sm" className="h-7 text-[12px] mt-3">
-          {saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />} Save Preferences
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ─── General Tab ────────────────────────────────────────────────────────────────
-
-function GeneralTab() {
-  const [theme, setThemeState] = useState<string>(() => {
-    if (typeof window !== "undefined") return document.documentElement.classList.contains("dark") ? "dark" : "light";
-    return "dark";
+function NotificationsTab() {
+  const [notif, setNotif] = useState({
+    email_confirmation: true,
+    email_reminder: true,
+    sms_confirmation: false,
+    sms_reminder: false,
+    whatsapp_reminder: false,
+    reminder_hours_before: "24",
+    followup_enabled: false,
   });
 
-  const toggleTheme = (value: string) => {
-    setThemeState(value);
-    if (value === "dark") { document.documentElement.classList.add("dark"); localStorage.setItem("theme", "dark"); }
-    else { document.documentElement.classList.remove("dark"); localStorage.setItem("theme", "light"); }
-  };
-
   return (
-    <div className="divide-y divide-border">
-      <div className="px-4 md:px-6 py-4">
-        <p className="text-[12px] text-muted-foreground font-medium mb-3">Appearance</p>
-        <div className="flex items-center justify-between max-w-lg">
-          <span className="text-[13px]">Theme</span>
-          <Select value={theme} onValueChange={toggleTheme}>
-            <SelectTrigger className="w-[100px] h-7 text-[12px]"><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="light">Light</SelectItem><SelectItem value="dark">Dark</SelectItem></SelectContent>
-          </Select>
-        </div>
-      </div>
+    <div className="px-4 md:px-6 py-5 space-y-6">
+      <p className="text-[12px] text-muted-foreground font-medium uppercase tracking-wider">Bildirim Ayarları</p>
 
-      <div className="px-4 md:px-6 py-4">
-        <p className="text-[12px] text-muted-foreground font-medium mb-3">Defaults</p>
-        <div className="grid gap-3 sm:grid-cols-2 max-w-lg">
-          <div className="space-y-1"><Label className="text-[12px]">Default Severity</Label>
-            <Select defaultValue="medium"><SelectTrigger className="h-8 text-[13px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="low">Low</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="critical">Critical</SelectItem></SelectContent></Select></div>
-          <div className="space-y-1"><Label className="text-[12px]">Default Environment</Label>
-            <Select defaultValue="production"><SelectTrigger className="h-8 text-[13px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="production">Production</SelectItem><SelectItem value="staging">Staging</SelectItem><SelectItem value="development">Development</SelectItem><SelectItem value="qa">QA</SelectItem></SelectContent></Select></div>
-        </div>
-      </div>
-
-      <div className="px-4 md:px-6 py-4">
-        <p className="text-[12px] text-destructive font-medium mb-3">Danger Zone</p>
-        <div className="flex items-center justify-between max-w-lg border border-destructive/20 rounded-md p-3">
-          <div>
-            <p className="text-[13px] font-medium">Delete Account</p>
-            <p className="text-[12px] text-muted-foreground">Permanently delete your account and all data.</p>
+      <div className="max-w-lg space-y-4">
+        {[
+          { key: "email_confirmation", label: "E-posta Onayı", desc: "Randevu alındığında e-posta gönder" },
+          { key: "email_reminder", label: "E-posta Hatırlatma", desc: "Randevu öncesi e-posta hatırlatması" },
+          { key: "sms_confirmation", label: "SMS Onayı", desc: "Randevu alındığında SMS gönder" },
+          { key: "sms_reminder", label: "SMS Hatırlatma", desc: "Randevu öncesi SMS hatırlatması" },
+          { key: "whatsapp_reminder", label: "WhatsApp Hatırlatma", desc: "Randevu öncesi WhatsApp mesajı (yakında)" },
+          { key: "followup_enabled", label: "Sonrası Takip", desc: "Randevu sonrası müşteriye değerlendirme iste" },
+        ].map((item) => (
+          <div key={item.key} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+            <div>
+              <p className="text-[13px] font-medium">{item.label}</p>
+              <p className="text-[12px] text-muted-foreground">{item.desc}</p>
+            </div>
+            <Switch
+              checked={notif[item.key as keyof typeof notif] as boolean}
+              onCheckedChange={v => setNotif(n => ({ ...n, [item.key]: v }))}
+            />
           </div>
-          <Button variant="destructive" size="sm" disabled className="h-7 text-[12px]">Coming Soon</Button>
-        </div>
+        ))}
       </div>
+
+      <div className="max-w-xs space-y-1.5">
+        <Label className="text-[12px]">Kaç Saat Önce Hatırlatma Gönderilsin?</Label>
+        <Select value={notif.reminder_hours_before} onValueChange={v => setNotif(n => ({ ...n, reminder_hours_before: v }))}>
+          <SelectTrigger className="h-9 text-[13px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {["1","2","4","6","12","24","48"].map(v => <SelectItem key={v} value={v}>{v} saat önce</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Button size="sm" className="h-8 text-[12px]" onClick={() => toast({ title: "Bildirim ayarları kaydedildi" })}>
+        Kaydet
+      </Button>
     </div>
   );
 }
 
-// ─── Main Settings Page ─────────────────────────────────────────────────────────
+// ─── Main Settings Page ───────────────────────────────────────────────────────
 
 export default function Settings() {
   return (
     <AppLayout>
       <div className="flex flex-col h-full">
-        <div className="px-4 md:px-6 h-11 border-b border-border flex items-center shrink-0">
-          <h1 className="text-[13px] font-medium">Settings</h1>
+        <div className="px-4 md:px-6 h-12 flex items-center border-b border-border shrink-0">
+          <h1 className="text-[13px] font-medium">Ayarlar</h1>
         </div>
 
         <div className="flex-1 overflow-auto">
-          <Tabs defaultValue="profile" className="flex flex-col md:flex-row h-full">
-            <div className="md:w-44 shrink-0 border-b md:border-b-0 md:border-r border-border">
-              <TabsList className="flex md:flex-col items-stretch w-full bg-transparent h-auto p-1.5 gap-px">
-                <TabsTrigger value="profile" className="justify-start gap-1.5 text-[12px] h-7 px-2 data-[state=active]:bg-muted w-full">
-                  <User className="h-3.5 w-3.5" /> Profile
-                </TabsTrigger>
-                <TabsTrigger value="company" className="justify-start gap-1.5 text-[12px] h-7 px-2 data-[state=active]:bg-muted w-full">
-                  <Building2 className="h-3.5 w-3.5" /> Company
-                </TabsTrigger>
-                <TabsTrigger value="team" className="justify-start gap-1.5 text-[12px] h-7 px-2 data-[state=active]:bg-muted w-full">
-                  <Users className="h-3.5 w-3.5" /> Team
-                </TabsTrigger>
-                <TabsTrigger value="email" className="justify-start gap-1.5 text-[12px] h-7 px-2 data-[state=active]:bg-muted w-full">
-                  <Bell className="h-3.5 w-3.5" /> Notifications
-                </TabsTrigger>
-                <TabsTrigger value="general" className="justify-start gap-1.5 text-[12px] h-7 px-2 data-[state=active]:bg-muted w-full">
-                  <SettingsIcon className="h-3.5 w-3.5" /> General
-                </TabsTrigger>
+          <div className="max-w-[900px]">
+            <Tabs defaultValue="profile" className="flex flex-col md:flex-row">
+              <TabsList className="flex md:flex-col md:w-44 h-auto p-1 md:p-2 gap-px bg-background border-b md:border-b-0 md:border-r border-border rounded-none justify-start overflow-x-auto md:overflow-x-visible shrink-0">
+                {[
+                  { value: "profile", label: "Profil", icon: User },
+                  { value: "business", label: "İşletme", icon: Building2 },
+                  { value: "booking", label: "Randevu", icon: CalendarDays },
+                  { value: "notifications", label: "Bildirimler", icon: Bell },
+                ].map(({ value, label, icon: Icon }) => (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    className="justify-start gap-2 w-full text-[13px] data-[state=active]:bg-muted px-3 py-2 rounded-md whitespace-nowrap"
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    {label}
+                  </TabsTrigger>
+                ))}
               </TabsList>
-            </div>
 
-            <div className="flex-1 min-w-0">
-              <TabsContent value="profile" className="m-0"><ProfileTab /></TabsContent>
-              <TabsContent value="company" className="m-0"><CompanyTab /></TabsContent>
-              <TabsContent value="team" className="m-0"><TeamTab /></TabsContent>
-              <TabsContent value="email" className="m-0"><EmailTab /></TabsContent>
-              <TabsContent value="general" className="m-0"><GeneralTab /></TabsContent>
-            </div>
-          </Tabs>
+              <div className="flex-1 min-w-0">
+                <TabsContent value="profile" className="m-0"><ProfileTab /></TabsContent>
+                <TabsContent value="business" className="m-0"><BusinessTab /></TabsContent>
+                <TabsContent value="booking" className="m-0"><BookingTab /></TabsContent>
+                <TabsContent value="notifications" className="m-0"><NotificationsTab /></TabsContent>
+              </div>
+            </Tabs>
+          </div>
         </div>
       </div>
     </AppLayout>

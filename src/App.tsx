@@ -9,11 +9,13 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
-import BugCreate from "./pages/BugCreate";
-import BugDetail from "./pages/BugDetail";
-import BugList from "./pages/BugList";
-import Analytics from "./pages/Analytics";
+import Appointments from "./pages/Appointments";
+import Customers from "./pages/Customers";
+import Services from "./pages/Services";
+import Staff from "./pages/Staff";
+import Payments from "./pages/Payments";
 import Settings from "./pages/Settings";
+import BookingPublic from "./pages/BookingPublic";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,11 +31,13 @@ const App = () => (
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<Index />} />
+              <Route path="/book/:slug" element={<BookingPublic />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/bugs" element={<ProtectedRoute><BugList /></ProtectedRoute>} />
-              <Route path="/bugs/new" element={<ProtectedRoute><BugCreate /></ProtectedRoute>} />
-              <Route path="/bugs/:id" element={<ProtectedRoute><BugDetail /></ProtectedRoute>} />
-              <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+              <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
+              <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+              <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
+              <Route path="/staff" element={<ProtectedRoute><Staff /></ProtectedRoute>} />
+              <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

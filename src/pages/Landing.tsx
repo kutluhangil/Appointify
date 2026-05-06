@@ -1,75 +1,122 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Moon, Sun } from "lucide-react";
-import { Logo3D } from "@/components/Logo3D";
-import testimonialAvatarAsset from "@/assets/testimonial-avatar.jpg.asset.json";
+import {
+  ArrowRight, CalendarClock, CalendarDays, Users, CreditCard,
+  Bell, BarChart3, Scissors, PenTool, Stethoscope, Dumbbell,
+  Check, Moon, Sun, Star,
+} from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { PRICING, PLAN_FEATURES, PLAN_FEATURES_EN, TRIAL_DAYS } from "@/lib/constants/pricing";
 
-import { StackedLogo } from "@/components/StackedLogo";
+type BillingCycle = "monthly" | "yearly";
 
-/** Apply slate accent on mount */
-const SLATE_HSL = "215 16% 47%";
-const SLATE_DARK = "215 14% 55%";
+const STATUS_COLORS: Record<string, string> = {
+  confirmed: "bg-green-500",
+  pending: "bg-yellow-500",
+  completed: "bg-blue-500",
+  cancelled: "bg-red-500",
+};
 
-const LOGO_VARIANT = 1;
-const CUBE_SIZE = 840;
-const CUBE_OFFSET_X = -140;
-const CUBE_OFFSET_Y = -80;
+const MOCK_APPOINTMENTS = [
+  { id: "A-001", name: "Emre Yılmaz", service: "Saç Kesim", time: "10:00", status: "confirmed" },
+  { id: "A-002", name: "Zeynep Aksoy", service: "Saç Boyama", time: "11:30", status: "confirmed" },
+  { id: "A-003", name: "Burak Şahin", service: "Sakal Tıraşı", time: "15:00", status: "pending" },
+  { id: "A-004", name: "Deniz Kara", service: "Kombo", time: "Dün 14:00", status: "completed" },
+  { id: "A-005", name: "Aylin Çelik", service: "Saç Yıkama", time: "Dün 13:00", status: "completed" },
+];
 
-const Landing = () => {
+const FEATURES = [
+  {
+    icon: CalendarDays,
+    title: "Akıllı Randevu Takvimi",
+    desc: "Gün, hafta veya aylık görünümle tüm randevularınızı tek ekranda yönetin. Çakışmaları önleyin, boşlukları doldurun.",
+  },
+  {
+    icon: Users,
+    title: "Müşteri Portalı",
+    desc: "Müşterileriniz 7/24 kendi randevularını alabilir, iptal edebilir. Onay SMS ve e-posta otomatik gönderilir.",
+  },
+  {
+    icon: CreditCard,
+    title: "Depozito & Ödeme",
+    desc: "Online depozito alarak no-show'ları minimize edin. Iyzico ve Stripe entegrasyonu ile güvenli ödeme.",
+  },
+  {
+    icon: Bell,
+    title: "Otomatik Hatırlatmalar",
+    desc: "Randevu öncesi SMS, e-posta veya WhatsApp hatırlatmaları ile müşteri devamsızlığını %70 azaltın.",
+  },
+  {
+    icon: BarChart3,
+    title: "Gelir & Raporlar",
+    desc: "Haftalık, aylık gelir raporları. En çok tercih edilen hizmetler, VIP müşteriler, personel performansı.",
+  },
+  {
+    icon: CalendarClock,
+    title: "Çoklu Personel & Lokasyon",
+    desc: "Her personelin farklı çalışma saatleri, izin günleri ve hizmetleri. Birden fazla şube desteği.",
+  },
+];
+
+const INDUSTRIES = [
+  { icon: Scissors, label: "Kuaför & Berber" },
+  { icon: PenTool, label: "Dövme Stüdyosu" },
+  { icon: Stethoscope, label: "Diyetisyen" },
+  { icon: Dumbbell, label: "Fitness & PT" },
+  { icon: Star, label: "Güzellik Salonu" },
+  { icon: CalendarClock, label: "Fizyoterapist" },
+];
+
+const TESTIMONIALS = [
+  {
+    quote: "Appointify ile müşterilerim gece 2'de bile randevu alabiliyor. No-show oranım %80 düştü.",
+    name: "Merve K.",
+    title: "Güzellik Salonu Sahibi, İstanbul",
+  },
+  {
+    quote: "3 şubem var, 12 personelim. Hepsini tek panelden yönetiyorum. Olmasa ne yapardım bilmiyorum.",
+    name: "Cihan A.",
+    title: "Berber Zinciri Sahibi, Ankara",
+  },
+];
+
+export default function Landing() {
   const { theme, setTheme } = useTheme();
-  const [cubeZoom, setCubeZoom] = useState(() => {
-    const w = window.innerWidth;
-    return w < 1024 ? 270 : 360;
-  });
-
-  useEffect(() => {
-    const handleResize = () => {
-      setCubeZoom(window.innerWidth < 1024 ? 270 : 360);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const [billing, setBilling] = useState<BillingCycle>("monthly");
+  const [lang, setLang] = useState<"tr" | "en">("tr");
 
   const isDark = theme === "dark";
-  const diagonalLineColor = isDark ? "hsl(240 4% 26%" : "hsl(240 4% 80%";
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const isDark = theme === "dark";
-    const hsl = isDark ? SLATE_DARK : SLATE_HSL;
-    root.style.setProperty("--primary", hsl);
-    root.style.setProperty("--ring", hsl);
-    root.style.setProperty("--sidebar-primary", hsl);
-    root.style.setProperty("--sidebar-ring", hsl);
-  }, [theme]);
+  const pricing = PRICING["tr"];
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* Nav */}
-      <nav className="fixed top-0 z-50 w-full bg-background border-b border-border px-6">
-        <div className="mx-auto flex h-[56px] max-w-[1200px] items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 -ml-0.5">
-            <StackedLogo size={16} />
-            <span className="text-[14px] font-bold text-foreground tracking-[0.08em] uppercase">Triage</span>
+      <nav className="fixed top-0 z-50 w-full bg-background/95 backdrop-blur border-b border-border px-6">
+        <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <CalendarClock className="h-5 w-5 text-foreground" />
+            <span className="text-[15px] font-semibold text-foreground tracking-tight">Appointify</span>
           </Link>
+          <div className="hidden md:flex items-center gap-6">
+            <a href="#features" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">Özellikler</a>
+            <a href="#pricing" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">Fiyatlar</a>
+            <a href="#industries" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">Sektörler</a>
+          </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="h-8 w-8 flex items-center justify-center text-foreground/70 hover:text-foreground transition-colors"
-              title="Toggle theme"
+              onClick={() => setTheme(isDark ? "light" : "dark")}
+              className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             >
-              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
             <Link to="/auth">
-              <button className="text-[13px] text-foreground/70 hover:text-foreground transition-colors h-8 px-3">
-                Log in
+              <button className="text-[13px] text-muted-foreground hover:text-foreground transition-colors h-8 px-3">
+                Giriş Yap
               </button>
             </Link>
             <Link to="/auth">
-              <button className="text-[13px] h-8 px-3 border border-foreground/40 text-foreground hover:bg-foreground hover:text-background transition-colors">
-                Sign up
+              <button className="text-[13px] h-8 px-4 bg-foreground text-background hover:bg-foreground/90 transition-colors rounded-md font-medium">
+                Ücretsiz Dene
               </button>
             </Link>
           </div>
@@ -77,291 +124,280 @@ const Landing = () => {
       </nav>
 
       {/* Hero */}
-      <section className="relative z-10 pt-16 pb-0 px-6 overflow-hidden">
-        <div className="mx-auto max-w-[1200px] relative">
-          {/* Two-column hero: text left, cube right */}
-          <div className="pt-[52px] pb-16 relative flex">
-            {/* Left column — text */}
-            <div className="relative z-[3] flex-1 min-w-0 max-w-[540px]">
-              <h1 className="text-[clamp(2rem,4vw,3.2rem)] font-[500] leading-[1.08] tracking-[-0.04em] text-foreground max-w-[540px]">
-                Bug tracking for teams that ship fast
-              </h1>
-              <p className="mt-6 text-base leading-relaxed text-muted-foreground max-w-[420px]">
-                Purpose-built for engineering teams. Triage, track, and resolve issues without slowing down.
-              </p>
-              <div className="mt-10 flex items-center gap-4">
-                <Link to="/auth">
-                  <button className="group relative inline-flex items-center gap-2 px-6 py-3 text-[14px] font-medium bg-foreground text-background transition-all duration-200 hover:bg-foreground/90">
-                    Get started free
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                  </button>
-                </Link>
-              </div>
+      <section className="relative pt-14 pb-0 px-6 overflow-hidden">
+        <div className="mx-auto max-w-[1200px]">
+          <div className="pt-20 pb-16 flex flex-col items-center text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-muted/40 text-[12px] text-muted-foreground mb-6">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+              {TRIAL_DAYS} gün ücretsiz — kredi kartı gerekmez
             </div>
-
-            {/* Right column — 3D cube */}
-            <div className="hidden md:block flex-1 relative z-[1] pointer-events-none" style={{ minWidth: 0 }}>
-              <div className="absolute top-1/2 right-0 -translate-y-1/2" style={{ width: CUBE_SIZE, height: CUBE_SIZE, transform: `translate(${-CUBE_OFFSET_X}px, calc(-50% + ${CUBE_OFFSET_Y}px))` }}>
-                <Logo3D variant={LOGO_VARIANT} size={CUBE_SIZE} zoom={cubeZoom} bgHex={theme === "dark" ? "#0e0e10" : "#ffffff"} lineHex={theme === "dark" ? "#58585e" : "#c0c0c8"} />
-              </div>
+            <h1 className="text-[clamp(2.4rem,5vw,4rem)] font-[600] leading-[1.05] tracking-[-0.04em] text-foreground max-w-[800px]">
+              Randevu yönetimini{" "}
+              <span className="relative inline-block">
+                kolaylaştır
+                <span className="absolute bottom-1 left-0 right-0 h-[3px] bg-foreground/20 rounded-full" />
+              </span>
+            </h1>
+            <p className="mt-6 text-[16px] leading-relaxed text-muted-foreground max-w-[520px]">
+              Kuaför, dövme stüdyosu, diyetisyen veya güzellik salonu — tüm randevularınızı, müşterilerinizi
+              ve ödemelerinizi tek platformdan yönetin.
+            </p>
+            <div className="mt-10 flex items-center gap-3 flex-wrap justify-center">
+              <Link to="/auth">
+                <button className="group inline-flex items-center gap-2 px-6 py-3 text-[14px] font-medium bg-foreground text-background hover:bg-foreground/90 transition-colors rounded-md">
+                  Hemen Başla
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </button>
+              </Link>
+              <Link to="/book/demo">
+                <button className="inline-flex items-center gap-2 px-6 py-3 text-[14px] text-muted-foreground hover:text-foreground border border-border hover:border-foreground/30 transition-colors rounded-md">
+                  Demo Booking Sayfası
+                </button>
+              </Link>
             </div>
           </div>
 
-          <div className="relative" style={{ overflow: "visible" }}>
-            <div className="relative z-10 rounded-t-xl border border-b-0 border-border bg-card overflow-hidden">
-              <div className="flex min-h-[420px]">
-                {/* Sidebar mock */}
-                <div className="w-[200px] border-r border-border p-3 flex flex-col gap-1 shrink-0">
-                  <div className="flex items-center gap-2 px-2 h-8 mb-2">
-                    <div className="h-4 w-4 rounded bg-primary/30" />
-                    <div className="h-2 w-16 rounded-full bg-foreground/15" />
+          {/* App preview */}
+          <div className="relative rounded-t-xl border border-b-0 border-border bg-card overflow-hidden shadow-2xl">
+            <div className="flex min-h-[400px]">
+              {/* Sidebar mock */}
+              <div className="w-[180px] border-r border-border p-2.5 flex flex-col gap-0.5 shrink-0">
+                <div className="flex items-center gap-2 px-2 h-10 mb-1">
+                  <div className="h-4 w-4 rounded bg-foreground/20 shrink-0" />
+                  <div className="h-2 w-20 rounded-full bg-foreground/15" />
+                </div>
+                <div className="h-px bg-border mb-1" />
+                {[
+                  { w: "w-20", active: true, label: "Dashboard" },
+                  { w: "w-24", active: false, label: "Randevular" },
+                  { w: "w-20", active: false, label: "Müşteriler" },
+                  { w: "w-16", active: false, label: "Hizmetler" },
+                  { w: "w-16", active: false, label: "Ödemeler" },
+                ].map((item, i) => (
+                  <div key={i} className={`flex items-center gap-2 px-2 h-8 rounded-md ${item.active ? "bg-accent" : ""}`}>
+                    <div className="h-3 w-3 rounded bg-muted-foreground/20 shrink-0" />
+                    <div className={`h-1.5 ${item.w} rounded-full ${item.active ? "bg-foreground/25" : "bg-muted-foreground/15"}`} />
                   </div>
-                  <div className="h-px bg-border" />
-                  {["w-20", "w-16", "w-24", "w-14"].map((w, i) => (
-                    <div key={i} className={`flex items-center gap-2 px-2 h-7 rounded ${i === 2 ? "bg-accent" : ""}`}>
-                      <div className="h-3 w-3 rounded bg-muted-foreground/15 shrink-0" />
-                      <div className={`h-1.5 ${w} rounded-full ${i === 2 ? "bg-foreground/25" : "bg-muted-foreground/15"}`} />
-                    </div>
-                  ))}
-                  <div className="h-px bg-border my-1" />
-                  <div className="px-2 mb-1">
-                    <div className="h-1.5 w-14 rounded-full bg-muted-foreground/10" />
+                ))}
+              </div>
+
+              {/* Main content */}
+              <div className="flex-1 flex flex-col min-w-0">
+                <div className="flex items-center justify-between px-4 h-10 border-b border-border">
+                  <div className="h-2 w-24 rounded-full bg-foreground/15" />
+                  <div className="flex gap-2">
+                    <div className="h-7 w-20 rounded-md bg-foreground/10" />
+                    <div className="h-7 w-7 rounded-md bg-foreground/10" />
                   </div>
-                  {["w-24", "w-16", "w-20"].map((w, i) => (
-                    <div key={`f-${i}`} className="flex items-center gap-2 px-2 h-7">
-                      <div className="h-2 w-2 rounded-full bg-primary/30 shrink-0" />
-                      <div className={`h-1.5 ${w} rounded-full bg-muted-foreground/12`} />
+                </div>
+
+                {/* Stats row */}
+                <div className="grid grid-cols-4 gap-px bg-border p-px m-4 rounded-lg overflow-hidden">
+                  {[
+                    { label: "Bugün", value: "8", sub: "randevu" },
+                    { label: "Bu Hafta", value: "₺5.2K", sub: "gelir" },
+                    { label: "Müşteriler", value: "312", sub: "toplam" },
+                    { label: "Doluluk", value: "%87", sub: "oran" },
+                  ].map((s, i) => (
+                    <div key={i} className="bg-card p-3">
+                      <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                      <p className="text-[18px] font-semibold mt-0.5">{s.value}</p>
+                      <p className="text-[10px] text-muted-foreground">{s.sub}</p>
                     </div>
                   ))}
                 </div>
 
-                {/* Main content — issue list */}
-                <div className="flex-1 flex flex-col min-w-0">
-                  <div className="flex items-center gap-3 px-4 h-10 border-b border-border">
-                    <div className="h-2 w-10 rounded-full bg-muted-foreground/15" />
-                    <div className="h-2 w-8 rounded-full bg-muted-foreground/10" />
-                    <div className="h-2 w-12 rounded-full bg-muted-foreground/10" />
-                    <div className="ml-auto flex gap-2">
-                      <div className="h-5 w-5 rounded bg-muted-foreground/8" />
-                      <div className="h-5 w-5 rounded bg-muted-foreground/8" />
-                    </div>
+                {/* Appointments list mock */}
+                <div className="mx-4 border border-border rounded-lg overflow-hidden">
+                  <div className="flex items-center px-3 h-8 border-b border-border bg-muted/30">
+                    <span className="text-[11px] font-medium text-muted-foreground">Bugünkü Randevular</span>
                   </div>
-                  <div className="flex-1">
-                    {[
-                      { priority: "bg-destructive", id: "TRG-142", title: "w-[180px]", status: "bg-warning" },
-                      { priority: "bg-destructive", id: "TRG-139", title: "w-[220px]", status: "bg-destructive" },
-                      { priority: "bg-warning", id: "TRG-138", title: "w-[160px]", status: "bg-primary" },
-                      { priority: "bg-primary", id: "TRG-135", title: "w-[200px]", status: "bg-success" },
-                      { priority: "bg-muted-foreground/30", id: "TRG-131", title: "w-[140px]", status: "bg-primary" },
-                      { priority: "bg-warning", id: "TRG-128", title: "w-[190px]", status: "bg-warning" },
-                      { priority: "bg-primary", id: "TRG-125", title: "w-[170px]", status: "bg-success" },
-                    ].map((row, i) => (
-                      <div key={i} className={`relative flex items-center gap-3 px-4 h-9 border-b border-border transition-colors`}>
-                        {i === 1 && (
-                          <div className="absolute inset-0" style={{
-                            backgroundImage: `repeating-linear-gradient(-45deg, ${diagonalLineColor} / 0.3) 0px, ${diagonalLineColor} / 0.3) 1px, transparent 1px, transparent 6px)`,
-                          }} />
-                        )}
-                        <div className="h-3.5 w-3.5 rounded border border-border flex items-center justify-center shrink-0">
-                          <div className={`h-1.5 w-1.5 rounded-sm ${row.priority}`} />
-                        </div>
-                        <span className="text-[11px] text-muted-foreground font-mono shrink-0">{row.id}</span>
-                        <div className={`h-1.5 ${row.title} rounded-full bg-foreground/15`} />
-                        <div className="ml-auto flex items-center gap-2">
-                          <div className={`h-2 w-2 rounded-full ${row.status}`} />
-                          <div className="h-5 w-5 rounded-full bg-muted-foreground/10" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Detail panel */}
-                <div className="w-[280px] border-l border-border shrink-0 hidden lg:flex flex-col">
-                  <div className="flex items-center justify-between px-4 h-10 border-b border-border">
-                    <div className="h-2 w-20 rounded-full bg-foreground/15" />
-                    <div className="flex gap-1.5">
-                      <div className="h-4 w-4 rounded bg-muted-foreground/10" />
-                      <div className="h-4 w-4 rounded bg-muted-foreground/10" />
+                  {MOCK_APPOINTMENTS.slice(0, 4).map((apt, i) => (
+                    <div key={i} className="flex items-center gap-3 px-3 h-9 border-b border-border last:border-0">
+                      <div className={`h-2 w-2 rounded-full shrink-0 ${STATUS_COLORS[apt.status]}`} />
+                      <span className="text-[11px] text-muted-foreground font-mono w-12 shrink-0">{apt.time}</span>
+                      <span className="text-[12px] font-medium truncate">{apt.name}</span>
+                      <span className="text-[11px] text-muted-foreground ml-auto shrink-0">{apt.service}</span>
                     </div>
-                  </div>
-                  <div className="p-4 space-y-4">
-                    <div className="h-2 w-32 rounded-full bg-foreground/20" />
-                    <div className="space-y-1.5">
-                      <div className="h-1.5 w-full rounded-full bg-muted-foreground/10" />
-                      <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
-                    </div>
-                    <div className="h-px bg-border" />
-                    {[
-                      { label: "Status", value: "bg-warning" },
-                      { label: "Priority", value: "bg-destructive" },
-                      { label: "Assignee", value: "bg-primary" },
-                      { label: "Due", value: "bg-muted-foreground/15" },
-                    ].map((prop) => (
-                      <div key={prop.label} className="flex items-center justify-between">
-                        <span className="text-[11px] text-muted-foreground">{prop.label}</span>
-                        <div className={`h-2.5 w-2.5 rounded-full ${prop.value}`} />
-                      </div>
-                    ))}
-                    <div className="h-px bg-border" />
-                    <div className="space-y-3 pt-1">
-                      <div className="h-1.5 w-14 rounded-full bg-muted-foreground/10" />
-                      {[1, 2].map((n) => (
-                        <div key={n} className="flex gap-2">
-                          <div className="h-5 w-5 rounded-full bg-muted-foreground/10 shrink-0 mt-0.5" />
-                          <div className="space-y-1 flex-1">
-                            <div className="h-1.5 w-full rounded-full bg-muted-foreground/8" />
-                            <div className="h-1.5 w-2/3 rounded-full bg-muted-foreground/8" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
             </div>
+            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
           </div>
         </div>
       </section>
 
-      {/* Full-width divider */}
-      <div className="relative z-10 w-full border-t border-border" />
+      <div className="w-full border-t border-border" />
 
       {/* Features */}
-      <section className="relative z-10 pt-24 pb-24 px-6 overflow-hidden">
-        <div className="mx-auto max-w-[1200px] relative">
-          <p className="text-[13px] uppercase tracking-[0.15em] text-muted-foreground mb-4">
-            Built for speed
-          </p>
-          <h2 className="text-[clamp(1.8rem,3vw,2.5rem)] font-[500] tracking-[-0.03em] text-foreground max-w-[500px] leading-[1.15]">
-            Less process.<br />More progress.
-          </h2>
+      <section id="features" className="py-24 px-6">
+        <div className="mx-auto max-w-[1200px]">
+          <div className="text-center mb-16">
+            <p className="text-[12px] uppercase tracking-[0.15em] text-muted-foreground mb-3">Özellikler</p>
+            <h2 className="text-[clamp(1.8rem,3vw,2.8rem)] font-[600] tracking-[-0.03em] text-foreground leading-[1.15]">
+              Randevu yönetimi için ihtiyacınız olan her şey
+            </h2>
+          </div>
 
-          <div className="mt-16 border border-border">
-            <div className="grid grid-cols-1 md:grid-cols-3">
-              {[
-                {
-                  title: "Priority triage",
-                  desc: "Four severity levels. SLA deadlines. One glance tells you what to fix next — and when you're out of time.",
-                  graphic: "bars",
-                },
-                {
-                  title: "Team workflows",
-                  desc: "Assign, reassign, comment, resolve. Every state change leaves a trail. Nothing slips through.",
-                  graphic: "flow",
-                },
-                {
-                  title: "Real-time analytics",
-                  desc: "Resolution time. Severity trends. Team velocity. Numbers that tell you something — not dashboards for dashboards' sake.",
-                  graphic: "chart",
-                },
-              ].map((feature, i) => (
-                <div
-                  key={feature.title}
-                  className={`p-8 ${i < 2 ? "md:border-r border-border" : ""} ${i > 0 ? "border-t md:border-t-0 border-border" : ""}`}
-                >
-                  <div className="mb-6 h-32 rounded-lg border border-border bg-card/30 flex items-center justify-center">
-                    <div className="space-y-2 w-full px-6">
-                      {feature.graphic === "bars" && (
-                        <>
-                          {[
-                            { w: "w-full", color: "bg-destructive" },
-                            { w: "w-3/4", color: "bg-warning" },
-                            { w: "w-1/2", color: "bg-primary" },
-                            { w: "w-1/4", color: "bg-success" },
-                          ].map((bar, j) => (
-                            <div key={j} className="flex items-center gap-2">
-                              <div className={`h-2 ${bar.w} rounded-full ${bar.color}`} />
-                            </div>
-                          ))}
-                        </>
-                      )}
-                      {feature.graphic === "flow" && (
-                        <div className="flex items-center justify-between px-2">
-                          {["bg-info", "bg-warning", "bg-success"].map((c, j) => (
-                            <div key={j} className="flex flex-col items-center gap-2">
-                              <div className={`h-8 w-8 rounded-full ${c}`} />
-                              <div className="h-1 w-8 rounded-full bg-muted-foreground/10" />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {feature.graphic === "chart" && (
-                        <div className="flex items-end gap-1.5 h-16 px-2">
-                          {[40, 65, 45, 80, 55, 70, 90].map((h, j) => (
-                            <div key={j} className="relative flex-1 rounded-t border border-border overflow-hidden" style={{ height: `${h}%` }}>
-                              <div className="absolute inset-0" style={{
-                                backgroundImage: `repeating-linear-gradient(-45deg, ${diagonalLineColor} / 0.5) 0px, ${diagonalLineColor} / 0.5) 1px, transparent 1px, transparent 5px)`,
-                              }} />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <h3 className="text-[15px] font-medium text-foreground mb-2">{feature.title}</h3>
-                  <p className="text-[13px] leading-[1.6] text-muted-foreground">{feature.desc}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {FEATURES.map((f, i) => (
+              <div key={i} className="border border-border rounded-xl p-6 bg-card hover:border-foreground/20 transition-colors">
+                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center mb-4">
+                  <f.icon className="h-5 w-5 text-foreground" />
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Full-width divider */}
-      <div className="relative z-10 w-full border-t border-border" />
-
-      {/* Social proof */}
-      <section className="relative z-10 py-24 px-6 overflow-hidden">
-        {/* Angular line shading background */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage: `repeating-linear-gradient(
-              -45deg,
-              ${diagonalLineColor} / 0.55) 0px,
-              ${diagonalLineColor} / 0.55) 1px,
-              transparent 1px,
-              transparent 8px
-            )`,
-            backgroundSize: "100% 100%",
-          }}
-        />
-        <div className="mx-auto max-w-[1200px] relative">
-          <div className="border border-border bg-background p-10 max-w-[720px] mx-auto">
-            <blockquote className="text-[20px] font-[400] leading-[1.5] tracking-[-0.01em] text-foreground/85">
-              "We replaced three tools with one. Mean time to resolution dropped 40% in the first month. The team actually uses it — that's the real win."
-            </blockquote>
-            <div className="mt-6 flex items-center gap-3">
-              <img src={testimonialAvatarAsset.url} alt="Jamie Kim" className="h-8 w-8 rounded-full object-cover" />
-              <div>
-                <span className="text-[13px] font-medium text-foreground">Jamie Kim</span>
-                <span className="text-[13px] text-muted-foreground ml-2">Engineering Lead, Acme Corp</span>
+                <h3 className="text-[15px] font-medium text-foreground mb-2">{f.title}</h3>
+                <p className="text-[13px] leading-[1.65] text-muted-foreground">{f.desc}</p>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Full-width divider */}
-      <div className="relative z-10 w-full border-t border-border" />
+      <div className="w-full border-t border-border" />
+
+      {/* Industries */}
+      <section id="industries" className="py-24 px-6">
+        <div className="mx-auto max-w-[1200px]">
+          <div className="text-center mb-12">
+            <p className="text-[12px] uppercase tracking-[0.15em] text-muted-foreground mb-3">Sektörler</p>
+            <h2 className="text-[clamp(1.6rem,2.5vw,2.4rem)] font-[600] tracking-[-0.03em] text-foreground leading-[1.2]">
+              Her hizmet sektörüne uygun
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {INDUSTRIES.map((ind, i) => (
+              <div key={i} className="flex flex-col items-center gap-3 p-5 border border-border rounded-xl hover:border-foreground/20 transition-colors cursor-default">
+                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                  <ind.icon className="h-5 w-5 text-foreground" />
+                </div>
+                <span className="text-[12px] text-center font-medium text-foreground">{ind.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="w-full border-t border-border" />
+
+      {/* Testimonials */}
+      <section className="py-24 px-6 bg-muted/20">
+        <div className="mx-auto max-w-[1200px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {TESTIMONIALS.map((t, i) => (
+              <div key={i} className="border border-border rounded-xl p-8 bg-card">
+                <div className="flex gap-1 mb-4">
+                  {[1,2,3,4,5].map(s => <Star key={s} className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />)}
+                </div>
+                <blockquote className="text-[16px] font-[400] leading-[1.6] text-foreground/85 mb-6">
+                  "{t.quote}"
+                </blockquote>
+                <div>
+                  <p className="text-[13px] font-medium text-foreground">{t.name}</p>
+                  <p className="text-[12px] text-muted-foreground">{t.title}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="w-full border-t border-border" />
+
+      {/* Pricing */}
+      <section id="pricing" className="py-24 px-6">
+        <div className="mx-auto max-w-[1200px]">
+          <div className="text-center mb-12">
+            <p className="text-[12px] uppercase tracking-[0.15em] text-muted-foreground mb-3">Fiyatlandırma</p>
+            <h2 className="text-[clamp(1.8rem,3vw,2.8rem)] font-[600] tracking-[-0.03em] text-foreground leading-[1.15] mb-6">
+              İşletmenize uygun plan
+            </h2>
+            <div className="inline-flex items-center border border-border rounded-lg p-1 gap-1">
+              <button
+                onClick={() => setBilling("monthly")}
+                className={`px-4 py-1.5 text-[13px] rounded-md transition-colors ${billing === "monthly" ? "bg-foreground text-background font-medium" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Aylık
+              </button>
+              <button
+                onClick={() => setBilling("yearly")}
+                className={`px-4 py-1.5 text-[13px] rounded-md transition-colors ${billing === "yearly" ? "bg-foreground text-background font-medium" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Yıllık <span className="text-green-500 font-medium">%20 indirim</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {(["solo", "team", "business", "enterprise"] as const).map((planId) => {
+              const plan = pricing.plans[planId];
+              const isPopular = planId === "team";
+              const price = billing === "monthly" ? plan.monthly : Math.round(plan.yearly / 12);
+              const features = PLAN_FEATURES[planId];
+
+              return (
+                <div
+                  key={planId}
+                  className={`border rounded-xl p-6 flex flex-col ${isPopular ? "border-foreground bg-foreground text-background" : "border-border bg-card"}`}
+                >
+                  {isPopular && (
+                    <div className="text-[11px] font-medium uppercase tracking-wider text-background/60 mb-2">
+                      En Popüler
+                    </div>
+                  )}
+                  <div className="capitalize font-semibold text-[15px] mb-1">{planId}</div>
+                  <div className="flex items-end gap-1 mb-1">
+                    <span className="text-[28px] font-[700] leading-none">
+                      {pricing.symbol}{price.toLocaleString("tr-TR")}
+                    </span>
+                    <span className={`text-[12px] mb-1 ${isPopular ? "text-background/60" : "text-muted-foreground"}`}>/ay</span>
+                  </div>
+                  {billing === "yearly" && (
+                    <p className={`text-[11px] mb-4 ${isPopular ? "text-background/60" : "text-muted-foreground"}`}>
+                      Yıllık {pricing.symbol}{plan.yearly.toLocaleString("tr-TR")} faturalandırılır
+                    </p>
+                  )}
+                  <Link to="/auth" className="mt-4 mb-6">
+                    <button
+                      className={`w-full py-2 text-[13px] font-medium rounded-md transition-colors ${
+                        isPopular
+                          ? "bg-background text-foreground hover:bg-background/90"
+                          : "border border-border hover:bg-accent"
+                      }`}
+                    >
+                      {TRIAL_DAYS} gün ücretsiz başla
+                    </button>
+                  </Link>
+                  <ul className="space-y-2.5 flex-1">
+                    {features.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <Check className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${isPopular ? "text-background/70" : "text-muted-foreground"}`} />
+                        <span className={`text-[12px] leading-snug ${isPopular ? "text-background/85" : "text-muted-foreground"}`}>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <div className="w-full border-t border-border" />
 
       {/* CTA */}
-      <section className="relative z-10 pt-32 pb-40 px-6 overflow-hidden">
-        <div className="mx-auto max-w-[1200px] text-center relative">
-          <h2 className="text-[clamp(2rem,4vw,3.2rem)] font-[500] tracking-[-0.035em] text-foreground leading-[1.1] mx-auto max-w-[560px]">
-            Your bugs aren't going to track themselves.
+      <section className="py-24 px-6">
+        <div className="mx-auto max-w-[1200px] text-center">
+          <h2 className="text-[clamp(2rem,4vw,3.2rem)] font-[600] tracking-[-0.035em] text-foreground leading-[1.1] mx-auto max-w-[600px]">
+            Randevularınız sizi beklemesin
           </h2>
-          <p className="mt-5 text-[15px] text-muted-foreground max-w-[400px] mx-auto">
-            Two minutes to set up. No credit card. No sales call.<br />Just fewer bugs, starting now.
+          <p className="mt-5 text-[15px] text-muted-foreground max-w-[420px] mx-auto">
+            {TRIAL_DAYS} gün ücretsiz deneyin. Kredi kartı gerekmez. 2 dakikada kurulum.
           </p>
-          <div className="mt-10 flex justify-center">
+          <div className="mt-10 flex justify-center gap-3">
             <Link to="/auth">
-              <button
-                className="group relative inline-flex items-center gap-2.5 px-8 py-3.5 text-[15px] font-medium transition-all duration-200 border border-foreground/40 text-foreground hover:bg-foreground hover:text-background hover:border-foreground"
-              >
-                Start tracking now
+              <button className="group inline-flex items-center gap-2.5 px-8 py-3.5 text-[15px] font-medium bg-foreground text-background hover:bg-foreground/90 transition-colors rounded-md">
+                Hemen Başla
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </button>
             </Link>
@@ -370,17 +406,21 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <div className="relative z-10 border-t border-border">
-        <div className="mx-auto max-w-[1200px] px-6 py-6 flex items-center justify-between">
-          <div className="flex items-center gap-2 -ml-0.5">
-            <StackedLogo size={16} />
-            <span className="text-[12px] font-bold text-foreground uppercase tracking-[0.08em]">Triage</span>
+      <div className="border-t border-border">
+        <div className="mx-auto max-w-[1200px] px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-foreground" />
+            <span className="text-[13px] font-semibold text-foreground tracking-tight">Appointify</span>
           </div>
-          <span className="text-[12px] text-muted-foreground">© {new Date().getFullYear()}</span>
+          <div className="flex items-center gap-6">
+            <a href="#features" className="text-[12px] text-muted-foreground hover:text-foreground transition-colors">Özellikler</a>
+            <a href="#pricing" className="text-[12px] text-muted-foreground hover:text-foreground transition-colors">Fiyatlar</a>
+            <span className="text-[12px] text-muted-foreground">Gizlilik</span>
+            <span className="text-[12px] text-muted-foreground">Koşullar</span>
+          </div>
+          <span className="text-[12px] text-muted-foreground">© {new Date().getFullYear()} Appointify</span>
         </div>
       </div>
     </div>
   );
-};
-
-export default Landing;
+}

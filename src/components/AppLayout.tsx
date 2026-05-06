@@ -2,8 +2,7 @@ import { useState } from "react";
 import { AppSidebar, SidebarContent } from "./AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu } from "lucide-react";
-import { StackedLogo } from "./StackedLogo";
+import { Menu, CalendarClock } from "lucide-react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -13,7 +12,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <AppSidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile header */}
         <header className="sticky top-0 z-40 flex md:hidden items-center justify-between h-11 border-b border-border bg-background px-3">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
@@ -28,8 +26,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </SheetContent>
           </Sheet>
           <div className="flex items-center gap-1.5">
-            <StackedLogo size={16} />
-            <span className="font-bold uppercase tracking-[0.08em] text-[14px] text-foreground">Triage</span>
+            <CalendarClock className="h-4 w-4 text-foreground" />
+            <span className="font-semibold text-[14px] text-foreground tracking-tight">Appointify</span>
           </div>
           <div className="w-7" />
         </header>

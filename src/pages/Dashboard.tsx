@@ -1,277 +1,268 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { SeverityBadge } from "@/components/SeverityBadge";
-import { StatusBadge } from "@/components/StatusBadge";
-import { Bug, Plus, Search, LayoutGrid, List, Loader2 } from "lucide-react";
-import type { Tables, Enums } from "@/integrations/supabase/types";
-import { Constants } from "@/integrations/supabase/types";
-import { formatDistanceToNow } from "date-fns";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts";
-import { NeonPatternDefs } from "@/components/NeonPatternDefs";
-import { useNeonCharts } from "@/hooks/use-neon-charts";
+import { Badge } from "@/components/ui/badge";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import {
+  Plus, CalendarDays, Users, TrendingUp, Clock,
+  CheckCircle2, XCircle, AlertCircle, ArrowRight,
+} from "lucide-react";
+import {
+  sampleAppointments, sampleCustomers, sampleStaff, sampleServices, sampleStats,
+  type SampleAppointmentStatus,
+} from "@/lib/sample-data";
+import { formatCurrency, formatTime } from "@/lib/format";
+import { useAuth } from "@/contexts/AuthContext";
 
-const STATUS_COLORS: Record<string, string> = {
-  new: "hsl(var(--info))",
-  assigned: "hsl(var(--primary))",
-  in_progress: "hsl(var(--warning))",
-  testing: "hsl(280, 60%, 55%)",
-  resolved: "hsl(var(--success))",
-  closed: "hsl(var(--muted-foreground))",
+const STATUS_CONFIG: Record<SampleAppointmentStatus, { label: string; color: string; bg: string }> = {
+  pending:    { label: "Bekliyor",    color: "text-yellow-500", bg: "bg-yellow-500/10" },
+  confirmed:  { label: "Onaylı",      color: "text-green-500",  bg: "bg-green-500/10" },
+  in_progress:{ label: "Devam Ediyor", color: "text-blue-500",   bg: "bg-blue-500/10" },
+  completed:  { label: "Tamamlandı",  color: "text-muted-foreground", bg: "bg-muted/40" },
+  cancelled:  { label: "İptal",       color: "text-red-500",    bg: "bg-red-500/10" },
+  no_show:    { label: "Gelmedi",     color: "text-orange-500", bg: "bg-orange-500/10" },
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  new: "New", assigned: "Assigned", in_progress: "In Progress",
-  testing: "Testing", resolved: "Resolved", closed: "Closed",
+const revenueChartConfig: ChartConfig = {
+  revenue: { label: "Gelir (₺)", color: "hsl(var(--foreground))" },
 };
-
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: "hsl(var(--severity-critical))", high: "hsl(var(--severity-high))",
-  medium: "hsl(var(--severity-medium))", low: "hsl(var(--severity-low))",
-};
-const SEVERITY_LABELS: Record<string, string> = {
-  critical: "Critical", high: "High", medium: "Medium", low: "Low",
-};
-
-type BugRow = Tables<"bugs">;
-const statusColumns: Enums<"bug_status">[] = ["new", "assigned", "in_progress", "testing", "resolved", "closed"];
 
 export default function Dashboard() {
   const { profile } = useAuth();
-  const navigate = useNavigate();
-  const [bugs, setBugs] = useState<BugRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [view, setView] = useState<"kanban" | "table">("table");
-  const { getFill } = useNeonCharts();
 
-  useEffect(() => {
-    const fetchBugs = async () => {
-      const { data } = await supabase.from("bugs").select("*").order("created_at", { ascending: false });
-      setBugs(data || []);
-      setLoading(false);
-    };
-    fetchBugs();
-    const channel = supabase
-      .channel("bugs-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "bugs" }, () => fetchBugs())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
 
-  const filtered = bugs.filter(b =>
-    b.title.toLowerCase().includes(search.toLowerCase()) ||
-    b.tracking_id.toLowerCase().includes(search.toLowerCase())
+  const todayAppointments = useMemo(
+    () => sampleAppointments.filter((a) => {
+      const d = new Date(a.start_time);
+      return d >= today && d < tomorrow;
+    }),
+    []
   );
 
-  const counts = {
-    total: bugs.length,
-    critical: bugs.filter(b => b.severity === "critical").length,
-    open: bugs.filter(b => !["resolved", "closed"].includes(b.status)).length,
-    resolved: bugs.filter(b => b.status === "resolved" || b.status === "closed").length,
-  };
-
-  const statusData = useMemo(() => {
-    const c: Record<string, number> = {};
-    bugs.forEach(b => { c[b.status] = (c[b.status] || 0) + 1; });
-    return Object.entries(STATUS_LABELS).map(([key, label]) => ({
-      status: label, count: c[key] || 0, fill: STATUS_COLORS[key],
-    }));
-  }, [bugs]);
-
-  const statusChartConfig: ChartConfig = Object.fromEntries(
-    Object.entries(STATUS_LABELS).map(([k, label]) => [k, { label, color: STATUS_COLORS[k] }])
+  const upcomingAppointments = useMemo(
+    () => sampleAppointments
+      .filter((a) => new Date(a.start_time) >= new Date())
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+      .slice(0, 5),
+    []
   );
 
-  const severityData = useMemo(() => {
-    const c: Record<string, number> = {};
-    bugs.forEach(b => { c[b.severity] = (c[b.severity] || 0) + 1; });
-    return Object.entries(SEVERITY_LABELS).map(([key, label]) => ({
-      name: label, value: c[key] || 0, fill: SEVERITY_COLORS[key],
-    }));
-  }, [bugs]);
-
-  const severityChartConfig: ChartConfig = Object.fromEntries(
-    Object.entries(SEVERITY_LABELS).map(([k, label]) => [k, { label, color: SEVERITY_COLORS[k] }])
-  );
-
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      </AppLayout>
-    );
-  }
+  const stats = [
+    {
+      label: "Bugünkü Randevular",
+      value: sampleStats.todayAppointments,
+      sub: `${todayAppointments.filter(a => a.status === "confirmed").length} onaylı`,
+      icon: CalendarDays,
+      color: "text-blue-500",
+    },
+    {
+      label: "Haftalık Gelir",
+      value: formatCurrency(sampleStats.weekRevenue),
+      sub: `ort. ${formatCurrency(sampleStats.avgBookingValue)}/randevu`,
+      icon: TrendingUp,
+      color: "text-green-500",
+    },
+    {
+      label: "Toplam Müşteri",
+      value: sampleStats.totalCustomers,
+      sub: "kayıtlı müşteri",
+      icon: Users,
+      color: "text-purple-500",
+    },
+    {
+      label: "Ort. Randevu Değeri",
+      value: formatCurrency(sampleStats.avgBookingValue),
+      sub: "bu hafta",
+      icon: Clock,
+      color: "text-orange-500",
+    },
+  ];
 
   return (
     <AppLayout>
       <div className="flex flex-col h-full">
-        {/* Header bar */}
-        <div className="flex items-center justify-between px-4 md:px-6 h-11 border-b border-border shrink-0">
-          <h1 className="text-[13px] font-medium">Dashboard</h1>
-          <div className="flex items-center gap-2">
-            <Button asChild size="sm" className="h-7 text-[12px] gap-1.5">
-              <Link to="/bugs/new">
-                <Plus className="h-3.5 w-3.5" /> Report bug
-              </Link>
-            </Button>
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 md:px-6 h-12 border-b border-border shrink-0">
+          <div>
+            <span className="text-[13px] font-medium">
+              {profile?.full_name ? `Merhaba, ${profile.full_name.split(" ")[0]}` : "Dashboard"}
+            </span>
           </div>
+          <Button asChild size="sm" className="h-7 text-[12px] gap-1.5">
+            <Link to="/appointments">
+              <Plus className="h-3.5 w-3.5" /> Yeni Randevu
+            </Link>
+          </Button>
         </div>
 
         <div className="flex-1 overflow-auto">
           <div className="p-4 md:p-6 space-y-6 max-w-[1400px]">
-            {/* Stats row */}
-            <NeonPatternDefs colors={[...Object.values(STATUS_COLORS), ...Object.values(SEVERITY_COLORS)]} />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border rounded-md overflow-hidden">
-              {[
-                { label: "Total bugs", value: counts.total },
-                { label: "Critical", value: counts.critical },
-                { label: "Open", value: counts.open },
-                { label: "Resolved", value: counts.resolved },
-              ].map((stat) => (
-                <div key={stat.label} className="bg-background p-4">
-                  <p className="text-[12px] text-muted-foreground">{stat.label}</p>
-                  <p className="text-2xl font-medium mt-1">{stat.value}</p>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border rounded-xl overflow-hidden">
+              {stats.map((s, i) => (
+                <div key={i} className="bg-card p-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] text-muted-foreground">{s.label}</span>
+                    <div className={`h-8 w-8 rounded-lg bg-muted flex items-center justify-center`}>
+                      <s.icon className={`h-4 w-4 ${s.color}`} />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[22px] font-semibold leading-none">{s.value}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">{s.sub}</p>
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-border rounded-md overflow-hidden">
-              <div className="bg-background p-4">
-                <p className="text-[13px] font-medium mb-1">Bugs by status</p>
-                <p className="text-[12px] text-muted-foreground mb-4">Distribution across workflow stages</p>
-                <ChartContainer config={statusChartConfig} className="h-[200px] w-full">
-                  <BarChart data={statusData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="status" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+              {/* Revenue chart */}
+              <div className="lg:col-span-3 border border-border rounded-xl bg-card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-[13px] font-medium">Haftalık Gelir</p>
+                    <p className="text-[11px] text-muted-foreground">Son 7 gün</p>
+                  </div>
+                  <span className="text-[20px] font-semibold">{formatCurrency(sampleStats.weekRevenue)}</span>
+                </div>
+                <ChartContainer config={revenueChartConfig} className="h-[180px] w-full">
+                  <BarChart data={sampleStats.weekRevenueSeries} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="count" radius={0}>
-                      {statusData.map((entry, i) => <Cell key={i} {...getFill(entry.fill)} />)}
-                    </Bar>
+                    <Bar dataKey="revenue" name="revenue" fill="hsl(var(--foreground))" radius={[3,3,0,0]} />
                   </BarChart>
                 </ChartContainer>
               </div>
-              <div className="bg-background p-4">
-                <p className="text-[13px] font-medium mb-1">Severity distribution</p>
-                <p className="text-[12px] text-muted-foreground mb-4">Breakdown by severity level</p>
-                <ChartContainer config={severityChartConfig} className="h-[200px] w-full">
-                  <PieChart>
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Pie data={severityData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
-                      {severityData.map((entry, i) => <Cell key={i} {...getFill(entry.fill)} />)}
-                    </Pie>
-                  </PieChart>
-                </ChartContainer>
+
+              {/* Status breakdown */}
+              <div className="lg:col-span-2 border border-border rounded-xl bg-card p-5">
+                <p className="text-[13px] font-medium mb-4">Randevu Durumları</p>
+                <div className="space-y-3">
+                  {(["confirmed","pending","completed","cancelled","no_show"] as SampleAppointmentStatus[]).map((status) => {
+                    const count = sampleAppointments.filter(a => a.status === status).length;
+                    const total = sampleAppointments.length;
+                    const pct = Math.round((count / total) * 100);
+                    const cfg = STATUS_CONFIG[status];
+                    return (
+                      <div key={status}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-[12px] font-medium ${cfg.color}`}>{cfg.label}</span>
+                          <span className="text-[12px] text-muted-foreground">{count}</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${cfg.color.replace("text-", "bg-")}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Search & View Toggle */}
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Search bugs..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-8 h-8 text-[13px] bg-transparent"
-                />
+            {/* Upcoming appointments */}
+            <div className="border border-border rounded-xl bg-card overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+                <p className="text-[13px] font-medium">Yaklaşan Randevular</p>
+                <Link to="/appointments" className="text-[12px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+                  Tümünü gör <ArrowRight className="h-3 w-3" />
+                </Link>
               </div>
-              <div className="flex items-center border rounded-md">
-                <Button variant={view === "table" ? "secondary" : "ghost"} size="sm" onClick={() => setView("table")} className="h-8 w-8 p-0">
-                  <List className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant={view === "kanban" ? "secondary" : "ghost"} size="sm" onClick={() => setView("kanban")} className="h-8 w-8 p-0">
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Table View */}
-            {view === "table" && (
-              <div className="border border-border rounded-md overflow-hidden">
-                <table className="w-full text-[13px]">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/30">
-                      <th className="text-left font-medium text-muted-foreground px-3 py-2">ID</th>
-                      <th className="text-left font-medium text-muted-foreground px-3 py-2">Title</th>
-                      <th className="text-left font-medium text-muted-foreground px-3 py-2">Status</th>
-                      <th className="text-left font-medium text-muted-foreground px-3 py-2">Priority</th>
-                      <th className="text-left font-medium text-muted-foreground px-3 py-2">Created</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="text-center py-8 text-muted-foreground text-[13px]">No bugs found</td>
-                      </tr>
-                    ) : (
-                      filtered.map((bug) => (
-                        <tr
-                          key={bug.id}
-                          className="border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
-                          onClick={() => navigate(`/bugs/${bug.id}`)}
-                        >
-                          <td className="px-3 py-2 text-muted-foreground font-mono text-[12px]">{bug.tracking_id}</td>
-                          <td className="px-3 py-2 font-medium">{bug.title}</td>
-                          <td className="px-3 py-2"><StatusBadge status={bug.status} /></td>
-                          <td className="px-3 py-2"><SeverityBadge severity={bug.severity} /></td>
-                          <td className="px-3 py-2 text-muted-foreground text-[12px] whitespace-nowrap">
-                            {formatDistanceToNow(new Date(bug.created_at), { addSuffix: true })}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Kanban View */}
-            {view === "kanban" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                {statusColumns.map((status) => {
-                  const columnBugs = filtered.filter(b => b.status === status);
+              <div className="divide-y divide-border">
+                {upcomingAppointments.map((apt) => {
+                  const customer = sampleCustomers.find(c => c.id === apt.customer_id);
+                  const service = sampleServices.find(s => s.id === apt.service_id);
+                  const staff = sampleStaff.find(s => s.id === apt.staff_id);
+                  const cfg = STATUS_CONFIG[apt.status];
                   return (
-                    <div key={status} className="space-y-1.5">
-                      <div className="flex items-center justify-between px-1">
-                        <StatusBadge status={status} />
-                        <span className="text-[11px] text-muted-foreground">{columnBugs.length}</span>
+                    <div key={apt.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
+                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                        <span className="text-[11px] font-medium">
+                          {customer?.full_name.split(" ").map(n => n[0]).join("").slice(0,2)}
+                        </span>
                       </div>
-                      <div className="space-y-1">
-                        {columnBugs.map((bug) => (
-                          <Link key={bug.id} to={`/bugs/${bug.id}`}>
-                            <div className="border border-border rounded-md p-2.5 hover:bg-muted/30 transition-colors cursor-pointer space-y-1.5">
-                              <p className="text-[11px] text-muted-foreground font-mono">{bug.tracking_id}</p>
-                              <p className="text-[13px] font-medium leading-snug line-clamp-2">{bug.title}</p>
-                              <div className="flex items-center justify-between">
-                                <SeverityBadge severity={bug.severity} />
-                                <span className="text-[10px] text-muted-foreground">
-                                  {formatDistanceToNow(new Date(bug.created_at), { addSuffix: true })}
-                                </span>
-                              </div>
-                            </div>
-                          </Link>
-                        ))}
-                        {columnBugs.length === 0 && (
-                          <div className="border border-dashed border-border rounded-md p-3 text-center">
-                            <p className="text-[11px] text-muted-foreground">No bugs</p>
-                          </div>
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium truncate">{customer?.full_name}</p>
+                        <p className="text-[11px] text-muted-foreground">{service?.name_tr} · {staff?.name}</p>
                       </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[12px] font-medium">{formatTime(apt.start_time)}</p>
+                        <p className="text-[11px] text-muted-foreground">{formatCurrency(apt.price)}</p>
+                      </div>
+                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color} shrink-0`}>
+                        {cfg.label}
+                      </span>
                     </div>
                   );
                 })}
               </div>
-            )}
+            </div>
+
+            {/* Quick stats row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="border border-border rounded-xl bg-card p-5">
+                <p className="text-[13px] font-medium mb-3">Hizmet Dağılımı</p>
+                <div className="space-y-2.5">
+                  {sampleServices.slice(0,4).map((svc) => {
+                    const count = sampleAppointments.filter(a => a.service_id === svc.id).length;
+                    return (
+                      <div key={svc.id} className="flex items-center justify-between">
+                        <span className="text-[12px] text-muted-foreground truncate">{svc.name_tr}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12px] font-medium">{count}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="border border-border rounded-xl bg-card p-5">
+                <p className="text-[13px] font-medium mb-3">Personel Performansı</p>
+                <div className="space-y-2.5">
+                  {sampleStaff.map((s) => {
+                    const count = sampleAppointments.filter(a => a.staff_id === s.id).length;
+                    const revenue = sampleAppointments.filter(a => a.staff_id === s.id && a.status === "completed").reduce((sum, a) => sum + a.price, 0);
+                    return (
+                      <div key={s.id} className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-medium text-background" style={{ background: s.color }}>
+                          {s.name[0]}
+                        </div>
+                        <span className="text-[12px] truncate flex-1">{s.name}</span>
+                        <span className="text-[11px] text-muted-foreground">{count} randevu</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="border border-border rounded-xl bg-card p-5">
+                <p className="text-[13px] font-medium mb-3">VIP Müşteriler</p>
+                <div className="space-y-2.5">
+                  {sampleCustomers.filter(c => c.tags.includes("VIP") || c.total_visits >= 6).slice(0,4).map((c) => (
+                    <div key={c.id} className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-muted shrink-0 flex items-center justify-center text-[10px] font-medium">
+                        {c.full_name.split(" ").map(n => n[0]).join("").slice(0,2)}
+                      </div>
+                      <span className="text-[12px] truncate flex-1">{c.full_name}</span>
+                      <span className="text-[11px] text-muted-foreground">{c.total_visits} ziyaret</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
