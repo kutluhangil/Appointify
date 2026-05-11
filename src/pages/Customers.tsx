@@ -2,10 +2,13 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Search, Plus, Phone, Mail, Star, TrendingUp, CalendarDays, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Search, Plus, Phone, Mail, TrendingUp, CalendarDays, AlertTriangle } from "lucide-react";
 import { sampleCustomers, sampleAppointments, sampleServices, sampleStaff } from "@/lib/sample-data";
 import { formatCurrency, formatRelative, formatTime } from "@/lib/format";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 
@@ -16,18 +19,40 @@ const TAG_COLORS: Record<string, string> = {
 };
 
 export default function Customers() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<typeof sampleCustomers[0] | null>(null);
+  const [customers, setCustomers] = useState(sampleCustomers);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState({ full_name: "", phone: "", email: "" });
+
+  const handleAddCustomer = () => {
+    if (!addForm.full_name || !addForm.phone) return;
+    setCustomers(prev => [...prev, {
+      id: `c${Date.now()}`,
+      full_name: addForm.full_name,
+      phone: addForm.phone,
+      email: addForm.email,
+      total_visits: 0,
+      total_spent: 0,
+      last_visit_at: new Date().toISOString(),
+      tags: ["new"],
+      no_show_count: 0,
+    }]);
+    setAddForm({ full_name: "", phone: "", email: "" });
+    setIsAddOpen(false);
+    toast({ title: "Müşteri eklendi", description: `${addForm.full_name} başarıyla eklendi.` });
+  };
 
   const filtered = useMemo(() => {
-    if (!search) return sampleCustomers;
+    if (!search) return customers;
     const q = search.toLowerCase();
-    return sampleCustomers.filter(c =>
+    return customers.filter(c =>
       c.full_name.toLowerCase().includes(q) ||
       c.phone.includes(q) ||
       c.email.toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [search, customers]);
 
   const customerAppointments = useMemo(() => {
     if (!selected) return [];
@@ -41,7 +66,7 @@ export default function Customers() {
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between px-4 md:px-6 h-12 border-b border-border shrink-0">
           <h1 className="text-[13px] font-medium">Müşteriler</h1>
-          <Button size="sm" className="h-7 text-[12px] gap-1.5">
+          <Button size="sm" className="h-7 text-[12px] gap-1.5" onClick={() => setIsAddOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> Müşteri Ekle
           </Button>
         </div>
@@ -52,10 +77,10 @@ export default function Customers() {
             {/* Summary cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border rounded-xl overflow-hidden">
               {[
-                { label: "Toplam Müşteri", value: sampleCustomers.length },
-                { label: "VIP Müşteri", value: sampleCustomers.filter(c => c.tags.includes("VIP")).length },
-                { label: "Yeni Müşteri", value: sampleCustomers.filter(c => c.tags.includes("new")).length },
-                { label: "Gelmedi (no-show)", value: sampleCustomers.reduce((s, c) => s + c.no_show_count, 0) },
+                { label: "Toplam Müşteri", value: customers.length },
+                { label: "VIP Müşteri", value: customers.filter(c => c.tags.includes("VIP")).length },
+                { label: "Yeni Müşteri", value: customers.filter(c => c.tags.includes("new")).length },
+                { label: "Gelmedi (no-show)", value: customers.reduce((s, c) => s + c.no_show_count, 0) },
               ].map((s, i) => (
                 <div key={i} className="bg-card p-4">
                   <p className="text-[11px] text-muted-foreground">{s.label}</p>
@@ -136,6 +161,52 @@ export default function Customers() {
           </div>
         </div>
       </div>
+
+      {/* Add customer dialog */}
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Yeni Müşteri</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Ad Soyad *</Label>
+              <Input
+                value={addForm.full_name}
+                onChange={e => setAddForm(f => ({ ...f, full_name: e.target.value }))}
+                placeholder="Ahmet Yılmaz"
+                className="h-9 text-[13px]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Telefon *</Label>
+              <Input
+                value={addForm.phone}
+                onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))}
+                placeholder="+90 5xx xxx xx xx"
+                className="h-9 text-[13px]"
+                type="tel"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">E-posta</Label>
+              <Input
+                value={addForm.email}
+                onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="ornek@mail.com"
+                className="h-9 text-[13px]"
+                type="email"
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-2">
+            <Button variant="outline" size="sm" onClick={() => setIsAddOpen(false)}>İptal</Button>
+            <Button size="sm" onClick={handleAddCustomer} disabled={!addForm.full_name || !addForm.phone}>
+              Kaydet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Customer detail sheet */}
       <Sheet open={!!selected} onOpenChange={() => setSelected(null)}>

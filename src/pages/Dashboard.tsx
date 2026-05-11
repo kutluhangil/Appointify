@@ -229,7 +229,6 @@ export default function Dashboard() {
                 <div className="space-y-2.5">
                   {sampleStaff.map((s) => {
                     const count = sampleAppointments.filter(a => a.staff_id === s.id).length;
-                    const revenue = sampleAppointments.filter(a => a.staff_id === s.id && a.status === "completed").reduce((sum, a) => sum + a.price, 0);
                     return (
                       <div key={s.id} className="flex items-center gap-2">
                         <div className="h-6 w-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-medium text-background" style={{ background: s.color }}>

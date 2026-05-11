@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Plus, Star, TrendingUp, CalendarDays, Clock } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Plus, Star, TrendingUp, CalendarDays } from "lucide-react";
 import { sampleStaff, sampleAppointments, sampleServices } from "@/lib/sample-data";
 import { formatCurrency } from "@/lib/format";
+import { useToast } from "@/hooks/use-toast";
 
 const WORKING_HOURS = [
   { day: "Pazartesi", open: true, start: "09:00", end: "18:00" },
@@ -16,10 +20,31 @@ const WORKING_HOURS = [
   { day: "Pazar",     open: false, start: "—",     end: "—" },
 ];
 
-export default function Staff() {
-  const [selected, setSelected] = useState<typeof sampleStaff[0] | null>(null);
+const STAFF_COLORS = ["#a78bfa", "#34d399", "#f472b6", "#60a5fa", "#fbbf24", "#fb923c"];
 
-  const staffWithStats = sampleStaff.map(s => {
+export default function Staff() {
+  const { toast } = useToast();
+  const [selected, setSelected] = useState<typeof sampleStaff[0] | null>(null);
+  const [staffList, setStaffList] = useState(sampleStaff);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState({ name: "", specialties: "" });
+
+  const handleAddStaff = () => {
+    if (!addForm.name) return;
+    const newStaff = {
+      id: `s${Date.now()}`,
+      name: addForm.name,
+      avatar_url: "",
+      specialties: addForm.specialties.split(",").map(s => s.trim()).filter(Boolean),
+      color: STAFF_COLORS[staffList.length % STAFF_COLORS.length],
+    };
+    setStaffList(prev => [...prev, newStaff]);
+    setAddForm({ name: "", specialties: "" });
+    setIsAddOpen(false);
+    toast({ title: "Personel eklendi", description: `${addForm.name} başarıyla eklendi.` });
+  };
+
+  const staffWithStats = staffList.map(s => {
     const apts = sampleAppointments.filter(a => a.staff_id === s.id);
     const completed = apts.filter(a => a.status === "completed");
     const revenue = completed.reduce((sum, a) => sum + a.price, 0);
@@ -35,7 +60,7 @@ export default function Staff() {
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between px-4 md:px-6 h-12 border-b border-border shrink-0">
           <h1 className="text-[13px] font-medium">Personel</h1>
-          <Button size="sm" className="h-7 text-[12px] gap-1.5">
+          <Button size="sm" className="h-7 text-[12px] gap-1.5" onClick={() => setIsAddOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> Personel Ekle
           </Button>
         </div>
@@ -46,8 +71,8 @@ export default function Staff() {
             {/* Summary */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border rounded-xl overflow-hidden">
               {[
-                { label: "Toplam Personel", value: sampleStaff.length },
-                { label: "Aktif Personel", value: sampleStaff.length },
+                { label: "Toplam Personel", value: staffList.length },
+                { label: "Aktif Personel", value: staffList.length },
                 { label: "Toplam Randevu", value: sampleAppointments.length },
                 { label: "Tamamlanan Gelir", value: formatCurrency(sampleAppointments.filter(a => a.status === "completed").reduce((s, a) => s + a.price, 0)) },
               ].map((s, i) => (
@@ -106,7 +131,10 @@ export default function Staff() {
               ))}
 
               {/* Add card */}
-              <button className="border border-dashed border-border rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-foreground/30 hover:bg-muted/20 transition-colors min-h-[180px]">
+              <button
+                onClick={() => setIsAddOpen(true)}
+                className="border border-dashed border-border rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-foreground/30 hover:bg-muted/20 transition-colors min-h-[180px]"
+              >
                 <Plus className="h-6 w-6 text-muted-foreground" />
                 <span className="text-[13px] text-muted-foreground">Yeni personel ekle</span>
               </button>
@@ -114,6 +142,42 @@ export default function Staff() {
           </div>
         </div>
       </div>
+
+      {/* Add staff dialog */}
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Yeni Personel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Ad Soyad *</Label>
+              <Input
+                value={addForm.name}
+                onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Ayşe Kaya"
+                className="h-9 text-[13px]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Uzmanlık Alanları</Label>
+              <Input
+                value={addForm.specialties}
+                onChange={e => setAddForm(f => ({ ...f, specialties: e.target.value }))}
+                placeholder="Saç kesimi, Boyama (virgülle ayırın)"
+                className="h-9 text-[13px]"
+              />
+              <p className="text-[11px] text-muted-foreground">Virgülle ayrılmış uzmanlık alanları</p>
+            </div>
+          </div>
+          <DialogFooter className="mt-2">
+            <Button variant="outline" size="sm" onClick={() => setIsAddOpen(false)}>İptal</Button>
+            <Button size="sm" onClick={handleAddStaff} disabled={!addForm.name}>
+              Kaydet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Staff detail sheet */}
       <Sheet open={!!selected} onOpenChange={() => setSelected(null)}>

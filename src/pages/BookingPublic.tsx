@@ -38,8 +38,6 @@ export default function BookingPublic() {
   const steps: Step[] = ["service", "staff", "datetime", "info", "confirm", "success"];
   const stepIdx = steps.indexOf(step);
 
-  const canGoBack = stepIdx > 0 && step !== "success";
-
   const handleSubmit = async () => {
     setIsSubmitting(true);
     await new Promise(r => setTimeout(r, 1500));

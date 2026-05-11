@@ -10,9 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import {
-  User, Building2, Bell, Clock, Loader2, Camera, CalendarDays, Link,
-} from "lucide-react";
+import { User, Building2, Bell, Loader2, Camera, CalendarDays } from "lucide-react";
 import { initials } from "@/lib/format";
 
 // ─── Profile Tab ─────────────────────────────────────────────────────────────
@@ -45,7 +43,14 @@ function ProfileTab() {
     const ext = file.name.split(".").pop();
     const path = `${user.id}/avatar.${ext}`;
     const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (upErr) { toast({ title: "Yükleme başarısız", description: upErr.message, variant: "destructive" }); setUploadingAvatar(false); return; }
+    if (upErr) {
+      const msg = upErr.message.includes("not found") || upErr.message.includes("Bucket")
+        ? "Storage henüz yapılandırılmadı. MANUAL.md'deki 1. adımı tamamlayın."
+        : upErr.message;
+      toast({ title: "Yükleme başarısız", description: msg, variant: "destructive" });
+      setUploadingAvatar(false);
+      return;
+    }
     const { data } = supabase.storage.from("avatars").getPublicUrl(path);
     const url = `${data.publicUrl}?t=${Date.now()}`;
     await supabase.from("profiles").update({ avatar_url: url }).eq("user_id", user.id);

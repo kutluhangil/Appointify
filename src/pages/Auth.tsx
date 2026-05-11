@@ -13,6 +13,7 @@ export default function Auth() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [signupName, setSignupName] = useState("");
@@ -69,12 +70,16 @@ export default function Auth() {
               <span className="text-[16px] font-semibold text-foreground tracking-tight">Appointify</span>
             </Link>
             <div>
-              <p className="text-[15px] font-medium text-foreground">Hesabınıza giriş yapın</p>
-              <p className="text-[13px] text-muted-foreground mt-0.5">Randevu yönetiminize devam edin</p>
+              <p className="text-[15px] font-medium text-foreground">
+                {activeTab === "login" ? "Hesabınıza giriş yapın" : "Hesap oluşturun"}
+              </p>
+              <p className="text-[13px] text-muted-foreground mt-0.5">
+                {activeTab === "login" ? "Randevu yönetiminize devam edin" : "Ücretsiz 14 gün deneyin"}
+              </p>
             </div>
           </div>
 
-          <Tabs defaultValue="login">
+          <Tabs defaultValue="login" onValueChange={(v) => setActiveTab(v as "login" | "signup")}>
             <TabsList className="grid w-full grid-cols-2 h-9 p-0.5">
               <TabsTrigger value="login" className="text-[12px]">Giriş Yap</TabsTrigger>
               <TabsTrigger value="signup" className="text-[12px]">Kayıt Ol</TabsTrigger>

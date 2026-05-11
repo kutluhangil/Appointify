@@ -2,16 +2,18 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Search, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   sampleAppointments, sampleCustomers, sampleStaff, sampleServices,
   type SampleAppointmentStatus,
 } from "@/lib/sample-data";
 import { formatCurrency, formatTime } from "@/lib/format";
+import { useToast } from "@/hooks/use-toast";
 import { format, addDays, subDays, startOfWeek } from "date-fns";
 import { tr } from "date-fns/locale";
 
@@ -26,16 +28,44 @@ const STATUS_CONFIG: Record<SampleAppointmentStatus, { label: string; color: str
 
 type ViewMode = "list" | "calendar";
 
+const EMPTY_ADD_FORM = { customer_id: "", service_id: "", staff_id: "", date: "", time: "" };
+
 export default function Appointments() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [staffFilter, setStaffFilter] = useState<string>("all");
   const [view, setView] = useState<ViewMode>("list");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedApt, setSelectedApt] = useState<typeof sampleAppointments[0] | null>(null);
+  const [appointments, setAppointments] = useState(sampleAppointments);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState(EMPTY_ADD_FORM);
+
+  const handleAddAppointment = () => {
+    if (!addForm.customer_id || !addForm.service_id || !addForm.date || !addForm.time) return;
+    const service = sampleServices.find(s => s.id === addForm.service_id);
+    const startDt = new Date(`${addForm.date}T${addForm.time}`);
+    const endDt = new Date(startDt);
+    endDt.setMinutes(endDt.getMinutes() + (service?.duration ?? 30));
+    setAppointments(prev => [...prev, {
+      id: `a${Date.now()}`,
+      customer_id: addForm.customer_id,
+      service_id: addForm.service_id,
+      staff_id: addForm.staff_id || sampleStaff[0].id,
+      status: "pending" as const,
+      start_time: startDt.toISOString(),
+      end_time: endDt.toISOString(),
+      price: service?.price ?? 0,
+      currency: service?.currency ?? "TRY",
+    }]);
+    setAddForm(EMPTY_ADD_FORM);
+    setIsAddOpen(false);
+    toast({ title: "Randevu eklendi" });
+  };
 
   const filtered = useMemo(() => {
-    return sampleAppointments.filter((apt) => {
+    return appointments.filter((apt) => {
       const customer = sampleCustomers.find(c => c.id === apt.customer_id);
       const service = sampleServices.find(s => s.id === apt.service_id);
       const matchSearch = !search ||
@@ -45,20 +75,20 @@ export default function Appointments() {
       const matchStaff = staffFilter === "all" || apt.staff_id === staffFilter;
       return matchSearch && matchStatus && matchStaff;
     }).sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
-  }, [search, statusFilter, staffFilter]);
+  }, [search, statusFilter, staffFilter, appointments]);
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   const aptsByDay = useMemo(() => {
-    const map: Record<string, typeof sampleAppointments> = {};
-    sampleAppointments.forEach(apt => {
+    const map: Record<string, typeof appointments> = {};
+    appointments.forEach(apt => {
       const key = format(new Date(apt.start_time), "yyyy-MM-dd");
       if (!map[key]) map[key] = [];
       map[key].push(apt);
     });
     return map;
-  }, []);
+  }, [appointments]);
 
   return (
     <AppLayout>
@@ -66,7 +96,7 @@ export default function Appointments() {
         {/* Header */}
         <div className="flex items-center justify-between px-4 md:px-6 h-12 border-b border-border shrink-0">
           <h1 className="text-[13px] font-medium">Randevular</h1>
-          <Button size="sm" className="h-7 text-[12px] gap-1.5">
+          <Button size="sm" className="h-7 text-[12px] gap-1.5" onClick={() => setIsAddOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> Randevu Ekle
           </Button>
         </div>
@@ -245,6 +275,75 @@ export default function Appointments() {
           </div>
         </div>
       </div>
+
+      {/* Add appointment dialog */}
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Yeni Randevu</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Müşteri *</Label>
+              <Select value={addForm.customer_id} onValueChange={v => setAddForm(f => ({ ...f, customer_id: v }))}>
+                <SelectTrigger className="h-9 text-[13px]"><SelectValue placeholder="Müşteri seçin" /></SelectTrigger>
+                <SelectContent>
+                  {sampleCustomers.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Hizmet *</Label>
+              <Select value={addForm.service_id} onValueChange={v => setAddForm(f => ({ ...f, service_id: v }))}>
+                <SelectTrigger className="h-9 text-[13px]"><SelectValue placeholder="Hizmet seçin" /></SelectTrigger>
+                <SelectContent>
+                  {sampleServices.map(s => <SelectItem key={s.id} value={s.id}>{s.name_tr}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Personel</Label>
+              <Select value={addForm.staff_id} onValueChange={v => setAddForm(f => ({ ...f, staff_id: v }))}>
+                <SelectTrigger className="h-9 text-[13px]"><SelectValue placeholder="Fark etmez" /></SelectTrigger>
+                <SelectContent>
+                  {sampleStaff.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-[12px]">Tarih *</Label>
+                <Input
+                  type="date"
+                  value={addForm.date}
+                  onChange={e => setAddForm(f => ({ ...f, date: e.target.value }))}
+                  className="h-9 text-[13px]"
+                  min={new Date().toISOString().split("T")[0]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[12px]">Saat *</Label>
+                <Input
+                  type="time"
+                  value={addForm.time}
+                  onChange={e => setAddForm(f => ({ ...f, time: e.target.value }))}
+                  className="h-9 text-[13px]"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="mt-2">
+            <Button variant="outline" size="sm" onClick={() => setIsAddOpen(false)}>İptal</Button>
+            <Button
+              size="sm"
+              onClick={handleAddAppointment}
+              disabled={!addForm.customer_id || !addForm.service_id || !addForm.date || !addForm.time}
+            >
+              Randevu Ekle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Appointment detail dialog */}
       <Dialog open={!!selectedApt} onOpenChange={() => setSelectedApt(null)}>
