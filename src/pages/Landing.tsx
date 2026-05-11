@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
-import { PRICING, PLAN_FEATURES, PLAN_FEATURES_EN, TRIAL_DAYS } from "@/lib/constants/pricing";
+import { PRICING, PLAN_FEATURES, TRIAL_DAYS } from "@/lib/constants/pricing";
 
 type BillingCycle = "monthly" | "yearly";
 
@@ -83,7 +83,6 @@ const TESTIMONIALS = [
 export default function Landing() {
   const { theme, setTheme } = useTheme();
   const [billing, setBilling] = useState<BillingCycle>("monthly");
-  const [lang, setLang] = useState<"tr" | "en">("tr");
 
   const isDark = theme === "dark";
   const pricing = PRICING["tr"];
