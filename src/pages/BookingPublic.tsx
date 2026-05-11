@@ -30,6 +30,9 @@ export default function BookingPublic() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [form, setForm] = useState({ name: "", phone: "", email: "", notes: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showInfoErrors, setShowInfoErrors] = useState(false);
+
+  const isPhoneValid = (p: string) => /^[\d\s+\-()]{7,}$/.test(p.trim());
 
   const today = startOfDay(new Date());
   const weekStart = startOfWeek(addDays(today, weekOffset * 7), { weekStartsOn: 1 });
@@ -281,8 +284,11 @@ export default function BookingPublic() {
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="Ahmet Yılmaz"
-                  className="h-10 text-[13px]"
+                  className={`h-10 text-[13px] ${showInfoErrors && !form.name ? "border-destructive" : ""}`}
                 />
+                {showInfoErrors && !form.name && (
+                  <p className="text-[12px] text-destructive">Ad soyad zorunludur.</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[12px]">Telefon *</Label>
@@ -290,9 +296,15 @@ export default function BookingPublic() {
                   value={form.phone}
                   onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                   placeholder="+90 5xx xxx xx xx"
-                  className="h-10 text-[13px]"
+                  className={`h-10 text-[13px] ${showInfoErrors && !isPhoneValid(form.phone) ? "border-destructive" : ""}`}
                   type="tel"
                 />
+                {showInfoErrors && !form.phone && (
+                  <p className="text-[12px] text-destructive">Telefon numarası zorunludur.</p>
+                )}
+                {showInfoErrors && form.phone && !isPhoneValid(form.phone) && (
+                  <p className="text-[12px] text-destructive">Geçerli bir telefon numarası girin (en az 7 rakam).</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[12px]">E-posta</Label>
@@ -315,10 +327,16 @@ export default function BookingPublic() {
               </div>
             </div>
             <div className="flex gap-2 mt-6">
-              <Button variant="outline" onClick={() => setStep("datetime")}>
+              <Button variant="outline" onClick={() => { setShowInfoErrors(false); setStep("datetime"); }}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> Geri
               </Button>
-              <Button className="flex-1" disabled={!form.name || !form.phone} onClick={() => setStep("confirm")}>
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  setShowInfoErrors(true);
+                  if (form.name && isPhoneValid(form.phone)) setStep("confirm");
+                }}
+              >
                 Devam Et <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>

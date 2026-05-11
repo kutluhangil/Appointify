@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,8 +31,11 @@ type ViewMode = "list" | "calendar";
 
 const EMPTY_ADD_FORM = { customer_id: "", service_id: "", staff_id: "", date: "", time: "" };
 
+const ACTIONABLE = new Set<SampleAppointmentStatus>(["pending", "confirmed", "in_progress"]);
+
 export default function Appointments() {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [staffFilter, setStaffFilter] = useState<string>("all");
@@ -41,6 +45,21 @@ export default function Appointments() {
   const [appointments, setAppointments] = useState(sampleAppointments);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addForm, setAddForm] = useState(EMPTY_ADD_FORM);
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setIsAddOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
+
+  const handleStatusChange = (id: string, status: SampleAppointmentStatus) => {
+    setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+    setSelectedApt(null);
+    toast({
+      title: status === "cancelled" ? "Randevu iptal edildi" : "Randevu tamamlandı",
+    });
+  };
 
   const handleAddAppointment = () => {
     if (!addForm.customer_id || !addForm.service_id || !addForm.date || !addForm.time) return;
@@ -176,9 +195,9 @@ export default function Appointments() {
                       <div key={key} className="min-h-[140px] p-2">
                         <div className={`text-center mb-2 ${isToday ? "text-foreground font-semibold" : ""}`}>
                           <p className="text-[11px] text-muted-foreground uppercase">{format(day, "EEE", { locale: tr })}</p>
-                          <p className={`text-[15px] mt-0.5 ${isToday ? "h-7 w-7 rounded-full bg-foreground text-background flex items-center justify-center mx-auto" : ""}`}>
+                          <div className={`text-[15px] mt-0.5 ${isToday ? "h-7 w-7 rounded-full bg-foreground text-background flex items-center justify-center mx-auto" : ""}`}>
                             {format(day, "d")}
-                          </p>
+                          </div>
                         </div>
                         <div className="space-y-1">
                           {dayApts.slice(0, 3).map((apt) => {
@@ -401,14 +420,25 @@ export default function Appointments() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 pt-2">
-                    <Button variant="outline" size="sm" className="flex-1 text-[12px]">
-                      <XCircle className="h-3.5 w-3.5 mr-1" /> İptal Et
-                    </Button>
-                    <Button size="sm" className="flex-1 text-[12px]">
-                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Tamamla
-                    </Button>
-                  </div>
+                  {ACTIONABLE.has(selectedApt.status) && (
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-[12px] text-red-600 hover:text-red-600 hover:border-red-300"
+                        onClick={() => handleStatusChange(selectedApt.id, "cancelled")}
+                      >
+                        <XCircle className="h-3.5 w-3.5 mr-1" /> İptal Et
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 text-[12px]"
+                        onClick={() => handleStatusChange(selectedApt.id, "completed")}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Tamamla
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </>
             );

@@ -136,7 +136,11 @@ export default function Payments() {
                               <span className="font-medium">{customer?.full_name}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-muted-foreground">{service?.name_tr ?? "—"}</td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {service?.name_tr ?? (
+                              <span className="italic text-muted-foreground/60">{PAYMENT_TYPE[p.type] ?? "Genel"}</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
                             {PAYMENT_TYPE[p.type] ?? p.type}
                           </td>

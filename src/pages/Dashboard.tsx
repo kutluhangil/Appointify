@@ -91,7 +91,7 @@ export default function Dashboard() {
             </span>
           </div>
           <Button asChild size="sm" className="h-7 text-[12px] gap-1.5">
-            <Link to="/appointments">
+            <Link to="/appointments?new=1">
               <Plus className="h-3.5 w-3.5" /> Yeni Randevu
             </Link>
           </Button>
