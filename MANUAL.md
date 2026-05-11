@@ -1,44 +1,79 @@
-# Appointify — Manuel Kurulum Kılavuzu
+# Appointify — Kurulum Rehberi
 
-Bu dosya, otomatik olarak yapılamayan ve **senin elle yapman gereken** tüm adımları listeler.  
-Tamamladıkça kutucukları işaretle.
-
----
-
-## 1. Supabase — Storage Bucket (Zorunlu)
-
-Profil fotoğrafı yükleme çalışmıyor çünkü "avatars" bucket'ı henüz oluşturulmadı.
-
-**Yapılacaklar:**
-
-- [ ] [Supabase Dashboard](https://supabase.com/dashboard) → Projen → **Storage**
-- [ ] **New bucket** → Name: `avatars` → Public: **Açık** → Create
-- [ ] Storage Policies sekmesine gir → `avatars` bucket'ı seç → **New policy** ekle:
-  - Policy adı: `Users can upload their own avatar`
-  - Operation: `INSERT`
-  - `USING` expression:
-    ```sql
-    auth.uid()::text = (storage.foldername(name))[1]
-    ```
-  - Policy adı: `Avatars are publicly readable`
-  - Operation: `SELECT`
-  - `USING` expression: `true`
+Bu dosya **sırayla** yapman gereken her adımı anlatır.
+Her adımı bitirince yanındaki kutucuğu işaretle.
 
 ---
 
-## 2. Supabase — Appointify DB Şeması Migration (Zorunlu)
+## Önce Şunu Bil
 
-Şu an DB'de sadece bug tracker tabloları var (`bugs`, `profiles`).  
-Randevu/müşteri/hizmet/personel verileri sample-data'dan geliyor.  
-Gerçek SaaS için aşağıdaki tabloları oluşturman gerekiyor.
+Şu an site çalışıyor ve demosu yapılabilir durumda. Ama veriler gerçek değil — hepsi sahte örnek data. Kullanıcı girişi Supabase üzerinden gerçek çalışıyor, geri kalan her şey (randevular, müşteriler, personel) demo modunda.
 
-**Yapılacaklar:**
+Bu rehberi takip ettiğinde site gerçekten işleyen bir SaaS'a dönüşecek.
 
-- [ ] Supabase Dashboard → **SQL Editor** → New query → Yapıştır ve çalıştır:
+**Zorunlu adımlar (önce bunları yap):**
+→ Adım 1, 2, 3, 4
+
+**Opsiyonel ama önemli:**
+→ Adım 5, 6, 7, 8
+
+**En son bunları yap:**
+→ Adım 9, 10
+
+---
+
+## ADIM 1 — Profil Fotoğrafı Depolama Alanı Oluştur
+
+**Ne yapıyoruz?**
+Kullanıcılar Ayarlar sayfasından profil fotoğrafı yükleyebiliyor ama fotoğrafın kaydedileceği yer henüz yok. Bu adımda o yeri oluşturuyoruz.
+
+**Nasıl yapılır:**
+
+1. Tarayıcında şu adrese git: **supabase.com/dashboard**
+2. Kendi projen açılacak. Sol menüde **Storage** yaz, tıkla.
+3. Açılan ekranda **"New bucket"** butonuna tıkla.
+4. Şu ayarları yap:
+   - **Name:** `avatars` (tam bu şekilde, küçük harf)
+   - **Public bucket:** bu seçeneği **AÇ** (toggle'ı yeşil yap)
+5. **Save** ya da **Create** butonuna bas.
+
+Bucket oluştu. Şimdi kimin fotoğraf yükleyebileceğini ayarla:
+
+6. Az önce oluşturduğun `avatars` bucket'ına tıkla.
+7. Üst menüde **Policies** sekmesine geç.
+8. **"New policy"** butonuna tıkla → **"For full customization"** seç.
+9. Aşağıdaki ayarları yap:
+   - **Policy name:** `Herkes okuyabilir`
+   - **Allowed operation:** sadece `SELECT` işaretle
+   - **USING expression:** kutucuğa şunu yaz: `true`
+10. **Review** → **Save policy** de.
+11. Tekrar **"New policy"** → **"For full customization"**:
+    - **Policy name:** `Kullanici kendi yukleyebilir`
+    - **Allowed operation:** sadece `INSERT` işaretle
+    - **USING expression:** kutucuğa şunu yaz:
+      ```
+      auth.uid()::text = (storage.foldername(name))[1]
+      ```
+12. **Review** → **Save policy** de.
+
+- [ ] Bu adım tamamlandı
+
+---
+
+## ADIM 2 — Veritabanı Tablolarını Oluştur
+
+**Ne yapıyoruz?**
+Şu an veritabanında randevu, müşteri, personel veya hizmet tablosu yok. Sadece kullanıcı profil tablosu var. Bu adımda gerçek verilerin saklanacağı tüm tabloları oluşturuyoruz.
+
+**Nasıl yapılır:**
+
+1. Supabase Dashboard'da sol menüde **SQL Editor**'e tıkla.
+2. Sağ üstte **"New query"** butonuna bas.
+3. Açılan büyük beyaz metin kutusuna aşağıdaki kodun **tamamını** kopyala-yapıştır:
 
 ```sql
--- Tenants (işletmeler)
-CREATE TABLE tenants (
+-- İşletmeler tablosu
+CREATE TABLE IF NOT EXISTS tenants (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name         TEXT NOT NULL,
   slug         TEXT UNIQUE NOT NULL,
@@ -53,8 +88,8 @@ CREATE TABLE tenants (
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- Staff (personel)
-CREATE TABLE staff (
+-- Personel tablosu
+CREATE TABLE IF NOT EXISTS staff (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id    UUID REFERENCES tenants(id) ON DELETE CASCADE,
   user_id      UUID REFERENCES auth.users(id),
@@ -67,8 +102,8 @@ CREATE TABLE staff (
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- Services (hizmetler)
-CREATE TABLE services (
+-- Hizmetler tablosu
+CREATE TABLE IF NOT EXISTS services (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id    UUID REFERENCES tenants(id) ON DELETE CASCADE,
   name         TEXT NOT NULL,
@@ -81,20 +116,20 @@ CREATE TABLE services (
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- Customers (müşteriler)
-CREATE TABLE customers (
+-- Müşteriler tablosu
+CREATE TABLE IF NOT EXISTS customers (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id    UUID REFERENCES tenants(id) ON DELETE CASCADE,
   full_name    TEXT NOT NULL,
   phone        TEXT,
   email        TEXT,
-  tag          TEXT DEFAULT 'regular',  -- 'VIP' | 'new' | 'regular'
+  tag          TEXT DEFAULT 'regular',
   notes        TEXT,
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- Appointments (randevular)
-CREATE TABLE appointments (
+-- Randevular tablosu
+CREATE TABLE IF NOT EXISTS appointments (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id    UUID REFERENCES tenants(id) ON DELETE CASCADE,
   customer_id  UUID REFERENCES customers(id),
@@ -102,34 +137,48 @@ CREATE TABLE appointments (
   service_id   UUID REFERENCES services(id),
   starts_at    TIMESTAMPTZ NOT NULL,
   ends_at      TIMESTAMPTZ NOT NULL,
-  status       TEXT DEFAULT 'pending',  -- 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'
+  status       TEXT DEFAULT 'pending',
   notes        TEXT,
   price        NUMERIC(10,2),
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- Payments (ödemeler)
-CREATE TABLE payments (
+-- Ödemeler tablosu
+CREATE TABLE IF NOT EXISTS payments (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id       UUID REFERENCES tenants(id) ON DELETE CASCADE,
   appointment_id  UUID REFERENCES appointments(id),
   customer_id     UUID REFERENCES customers(id),
   amount          NUMERIC(10,2) NOT NULL,
   currency        TEXT DEFAULT 'TRY',
-  method          TEXT,  -- 'card' | 'cash' | 'bank_transfer'
-  status          TEXT DEFAULT 'pending',  -- 'pending' | 'paid' | 'refunded'
+  method          TEXT,
+  status          TEXT DEFAULT 'pending',
   paid_at         TIMESTAMPTZ,
   created_at      TIMESTAMPTZ DEFAULT now()
 );
+
+-- Kullanıcı profillerine işletme bağlantısı ekle
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id),
+  ADD COLUMN IF NOT EXISTS role      TEXT DEFAULT 'owner';
 ```
+
+4. Sağ üstte **"Run"** butonuna bas (ya da Cmd+Enter).
+5. Alt kısımda yeşil "Success" yazısı göreceksin. Hata görürsen bana söyle.
+
+- [ ] Bu adım tamamlandı
 
 ---
 
-## 3. Supabase — Row Level Security (RLS) Politikaları
+## ADIM 3 — Güvenlik Kurallarını Aç
 
-Migration'dan sonra her tablo için RLS açılmalı.
+**Ne yapıyoruz?**
+Az önce oluşturduğun tablolara herkes erişemesin — sadece kendi verilerine yetkili kişiler erişebilsin. Buna "Row Level Security" (RLS) deniyor.
 
-- [ ] SQL Editor'da çalıştır:
+**Nasıl yapılır:**
+
+1. SQL Editor'da tekrar **"New query"** butonuna bas.
+2. Aşağıdaki kodu kopyala-yapıştır:
 
 ```sql
 ALTER TABLE tenants      ENABLE ROW LEVEL SECURITY;
@@ -139,150 +188,275 @@ ALTER TABLE customers    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments     ENABLE ROW LEVEL SECURITY;
 
--- Tenant sahipleri kendi verilerini okuyabilir/yazabilir
--- (Aşağıdaki politikalar tenant_id kontrolü için örnek şablondur;
---  gerçek multi-tenant auth için profiles tablosuna tenant_id kolonu eklemeni öneririm)
+-- Kendi işletmesini görebilsin
+CREATE POLICY "tenant_select" ON tenants
+  FOR SELECT USING (
+    id IN (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+  );
 
-CREATE POLICY "tenant_own_data" ON appointments
-  USING (tenant_id IN (
-    SELECT tenant_id FROM profiles WHERE id = auth.uid()
-  ));
+CREATE POLICY "tenant_insert" ON tenants
+  FOR INSERT WITH CHECK (true);
+
+-- Randevulara kendi işletmesi erişebilsin
+CREATE POLICY "appointments_all" ON appointments
+  USING (
+    tenant_id IN (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+  );
+
+CREATE POLICY "customers_all" ON customers
+  USING (
+    tenant_id IN (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+  );
+
+CREATE POLICY "services_all" ON services
+  USING (
+    tenant_id IN (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+  );
+
+CREATE POLICY "staff_all" ON staff
+  USING (
+    tenant_id IN (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+  );
+
+CREATE POLICY "payments_all" ON payments
+  USING (
+    tenant_id IN (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+  );
 ```
 
----
+3. **Run** butonuna bas. Yeşil success görünce devam et.
 
-## 4. Vercel — Environment Variables (Zorunlu)
-
-`.env` dosyası sadece local'de çalışır. Vercel'de de ayarlanması gerekiyor.
-
-- [ ] [Vercel Dashboard](https://vercel.com/dashboard) → Appointify projesi → **Settings** → **Environment Variables**
-- [ ] Şu değişkenleri ekle (Supabase Dashboard → Project Settings → API'dan al):
-
-| Değişken | Değer |
-|---|---|
-| `VITE_SUPABASE_URL` | `https://xxxx.supabase.co` |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | `eyJh...` (anon/public key) |
-
-- [ ] Değişkenleri ekledikten sonra **Redeploy** yap (Deployments → üç nokta → Redeploy).
+- [ ] Bu adım tamamlandı
 
 ---
 
-## 5. Stripe veya Iyzico — Ödeme Entegrasyonu
+## ADIM 4 — Vercel'e Ortam Değişkenlerini Ekle
 
-Şu an ödeme sayfası sadece sample-data gösteriyor; gerçek ödeme akışı bağlı değil.
+**Ne yapıyoruz?**
+Projenin Supabase ile konuşabilmesi için bazı gizli anahtarlar gerekiyor. Bu anahtarlar yerel bilgisayarında `.env` dosyasında zaten var. Ama Vercel'deki canlı sitede de bunların tanımlı olması lazım.
 
-### Stripe (Uluslararası)
+**Bu anahtarları nereden bulursun:**
 
-- [ ] [stripe.com](https://stripe.com) hesabı aç
-- [ ] API Keys → `STRIPE_SECRET_KEY` ve `VITE_STRIPE_PUBLISHABLE_KEY` al
-- [ ] Vercel env vars'a ekle
-- [ ] `npm install @stripe/stripe-js @stripe/react-stripe-js` çalıştır
-- [ ] Backend'de (Supabase Edge Function veya ayrı Node.js server) `/api/create-payment-intent` endpoint'i oluştur
+1. **supabase.com/dashboard** → Projen → Sol altta **Project Settings** → **API**
+2. Orada 2 şey göreceksin:
+   - **Project URL** → `https://xxxxxx.supabase.co` şeklinde
+   - **anon / public** anahtarı → `eyJh...` ile başlayan uzun bir kod
 
-### Iyzico (TR için)
+**Vercel'e ekleme:**
 
-- [ ] [iyzico.com](https://www.iyzico.com/en/iyzipay) → sandbox hesabı aç
-- [ ] API Key + Secret Key al → Vercel env vars'a ekle
-- [ ] `npm install iyzipay` çalıştır (backend'de kullanılır)
+3. Yeni sekmede **vercel.com/dashboard** aç.
+4. Appointify projesine tıkla.
+5. Üst menüde **Settings**'e tıkla.
+6. Sol menüde **Environment Variables**'a tıkla.
+7. Aşağıdaki 2 değişkeni tek tek ekle:
 
----
+   **Birinci değişken:**
+   - **Key:** `VITE_SUPABASE_URL`
+   - **Value:** Az önce kopyaladığın Project URL (https://... ile başlayan)
+   - **Environment:** All (Production, Preview, Development hepsini seç)
+   - **Save** bas.
 
-## 6. SMS / WhatsApp Bildirim Servisi
+   **İkinci değişken:**
+   - **Key:** `VITE_SUPABASE_PUBLISHABLE_KEY`
+   - **Value:** anon/public anahtarı (eyJh... ile başlayan)
+   - **Environment:** All
+   - **Save** bas.
 
-Notification sekmesindeki SMS/WhatsApp switch'leri UI seviyesinde çalışıyor; arkada servis yok.
+8. Sol menüde **Deployments**'a geç.
+9. En üstteki deployment'ın sağındaki **üç nokta (...)** menüsüne tıkla.
+10. **Redeploy** seç → **Redeploy** butonuna bas.
+11. 2-3 dakika bekle. Yeşil "Ready" görünce tamam.
 
-### Seçenekler:
-
-- [ ] **Twilio** (SMS + WhatsApp): [twilio.com](https://www.twilio.com) → hesap aç → `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` al
-- [ ] **Netgsm** (TR SMS, daha ucuz): [netgsm.com.tr](https://www.netgsm.com.tr) → API key al
-- [ ] Vercel env vars'a ekle
-- [ ] Supabase Edge Function veya cron job ile randevu öncesi bildirim gönder
-
----
-
-## 7. E-posta Bildirim Servisi
-
-- [ ] **Resend** (önerilen): [resend.com](https://resend.com) → hesap aç → `RESEND_API_KEY` al
-- [ ] **SendGrid** alternatif: [sendgrid.com](https://sendgrid.com)
-- [ ] Vercel env vars'a ekle
-- [ ] Randevu onay/hatırlatma e-postası için Supabase Edge Function oluştur
-
----
-
-## 8. Redis + BullMQ — Job Queue (Opsiyonel ama önerilen)
-
-Randevu hatırlatıcıları için arka plan işleri.
-
-- [ ] [Upstash](https://upstash.com) → Redis database oluştur (Vercel marketplace'ten de eklenebilir)
-- [ ] `UPSTASH_REDIS_URL` ve `UPSTASH_REDIS_TOKEN` al → Vercel env vars'a ekle
-- [ ] Backend servis oluştur: `npm install bullmq ioredis`
-- [ ] `reminderQueue.ts` dosyası oluştur — randevu 24 saat öncesinde SMS/e-posta job'u zamanla
+- [ ] Bu adım tamamlandı
 
 ---
 
-## 9. Özel Domain (Opsiyonel)
+## ADIM 5 — E-posta Bildirimleri Kur
 
-- [ ] Domain al (Namecheap, GoDaddy, veya doğrudan Vercel'den)
-- [ ] Vercel Dashboard → Appointify → **Settings** → **Domains** → domain ekle
-- [ ] DNS ayarları:
-  - `A` record → `76.76.21.21` (Vercel IP)
-  - veya `CNAME` → `cns.vercel-dns.com`
-- [ ] SSL otomatik aktif olur (birkaç dakika bekle)
+**Ne yapıyoruz?**
+Müşteri randevu aldığında otomatik onay e-postası gitsin. Bunu ücretsiz bir servis olan **Resend** ile yapacağız.
+
+**Nasıl yapılır:**
+
+1. **resend.com** adresine git → **Sign up** ile ücretsiz hesap aç.
+2. Sol menüde **API Keys** → **Create API Key** tıkla.
+3. Bir isim ver (örn: `Appointify`) → **Add** bas.
+4. Çıkan anahtarı kopyala (bir daha göremezsin, kaydet!).
+
+**Vercel'e ekle:**
+
+5. Vercel Dashboard → Appointify → Settings → Environment Variables
+6. Yeni değişken ekle:
+   - **Key:** `RESEND_API_KEY`
+   - **Value:** Az önce kopyaladığın anahtar
+   - **Save** bas.
+7. Tekrar Redeploy yap (Adım 4'ün 8-11. adımları gibi).
+
+**Önemli not:** Sadece bu anahtarı eklemek yetmez — e-posta gönderecek bir backend fonksiyonu da yazman gerekecek. Bunu geliştirici ile birlikte yapmanı öneririm ya da bana söyle, birlikte yapalım.
+
+- [ ] Bu adım tamamlandı (ya da ertelendi)
 
 ---
 
-## 10. Supabase — Tenant–User İlişkisi (profiles tablosu güncellemesi)
+## ADIM 6 — SMS Bildirimleri Kur
 
-Multi-tenant mimarinin çalışması için `profiles` tablosuna `tenant_id` kolonu eklenmeli.
+**Ne yapıyoruz?**
+Randevu öncesi müşteriye SMS hatırlatması gönderilsin. Türkiye için en uygun seçenek **Netgsm** ya da **Twilio**.
 
-- [ ] SQL Editor'da çalıştır:
+### Seçenek A — Netgsm (Türkiye, daha ucuz)
 
-```sql
-ALTER TABLE profiles ADD COLUMN tenant_id UUID REFERENCES tenants(id);
-ALTER TABLE profiles ADD COLUMN role TEXT DEFAULT 'owner';  -- 'owner' | 'staff'
+1. **netgsm.com.tr** adresine git → Kurumsal hesap aç.
+2. Hesabına giriş yap → API bilgilerini bul (**API Kullanıcı Adı** ve **Şifre**).
+3. Vercel'e ekle:
+   - **Key:** `NETGSM_USERCODE` → API kullanıcı adı
+   - **Key:** `NETGSM_PASSWORD` → API şifresi
+   - **Key:** `NETGSM_MSGHEADER` → SMS başlığın (kayıtlı başlık olmalı, örn: `KUAFOR`)
+
+### Seçenek B — Twilio (Uluslararası)
+
+1. **twilio.com** adresine git → Ücretsiz deneme hesabı aç.
+2. Console'da şu bilgileri bul:
+   - **Account SID**
+   - **Auth Token**
+   - Bir Twilio telefon numarası satın al.
+3. Vercel'e ekle:
+   - **Key:** `TWILIO_ACCOUNT_SID`
+   - **Key:** `TWILIO_AUTH_TOKEN`
+   - **Key:** `TWILIO_PHONE_NUMBER` → Satın aldığın numara (+1xxx şeklinde)
+
+**Not:** SMS göndermek için de backend fonksiyonu gerekiyor. Bunu da geliştirici yardımıyla kurman lazım.
+
+- [ ] Bu adım tamamlandı (ya da ertelendi)
+
+---
+
+## ADIM 7 — Online Ödeme Entegrasyonu
+
+**Ne yapıyoruz?**
+Müşteriler randevu alırken depozito ya da tam ödeme yapabilsin.
+
+### Seçenek A — Iyzico (Türkiye için önerilen)
+
+1. **iyzico.com** adresine git → **İyzipay** bölümüne gir.
+2. **Sandbox hesabı** aç (canlıya geçmeden önce test edebilirsin).
+3. Merchant Panel'de **API Anahtarları** bölümüne git.
+4. **API Key** ve **Secret Key**'i kopyala.
+5. Vercel'e ekle:
+   - **Key:** `IYZICO_API_KEY`
+   - **Key:** `IYZICO_SECRET_KEY`
+   - **Key:** `IYZICO_BASE_URL` → Sandbox için: `https://sandbox-api.iyzipay.com`
+
+### Seçenek B — Stripe (Uluslararası)
+
+1. **stripe.com** adresine git → Hesap aç.
+2. Dashboard → **Developers** → **API Keys**
+3. **Publishable key** ve **Secret key**'i kopyala.
+4. Vercel'e ekle:
+   - **Key:** `VITE_STRIPE_PUBLISHABLE_KEY` → Publishable key (pk_live_... veya pk_test_...)
+   - **Key:** `STRIPE_SECRET_KEY` → Secret key (sk_live_... veya sk_test_...)
+
+**Not:** Ödeme sayfasının gerçekten para alması için ödeme akışının kodlanması gerekiyor. Bu tek başına bir oturumun konusu.
+
+- [ ] Bu adım tamamlandı (ya da ertelendi)
+
+---
+
+## ADIM 8 — Özel Alan Adı (Domain) Bağla
+
+**Ne yapıyoruz?**
+Şu an site `appointify-xxx.vercel.app` gibi bir adreste. Kendi alan adını bağlayarak `appointify.com.tr` veya `randevu.isletmeadi.com` gibi bir adres yapacaksın.
+
+**Alan adın yoksa:**
+
+1. **isimtescil.net**, **natro.com** veya **godaddy.com**'dan bir .com.tr veya .com al.
+   - Tavsiye: `.com.tr` için isimtescil.net kullan, yıllık ~300-500₺.
+
+**Alan adın varsa:**
+
+2. Vercel Dashboard → Appointify projesi → **Settings** → **Domains**
+3. **"Add"** butonuna tıkla → Alan adını yaz (örn: `appointify.com.tr`) → **Add**
+4. Vercel sana DNS kayıtları verecek. İki seçenek:
+
+   **Seçenek A (tavsiye edilir) — Nameserver değiştir:**
+   - Alan adını aldığın yerde (isimtescil, natro vb.) Nameserver'ları değiştir:
+     - `ns1.vercel-dns.com`
+     - `ns2.vercel-dns.com`
+   - 10-60 dakika bekle. Vercel otomatik halleder.
+
+   **Seçenek B — DNS kaydı ekle:**
+   - Alan adını aldığın yerin DNS yönetimine gir.
+   - **A kaydı** ekle: İsim `@`, Değer `76.76.21.21`
+   - 10-60 dakika bekle.
+
+5. Vercel'de alan adının yanında yeşil tik görününce SSL sertifikası da otomatik kurulur.
+
+- [ ] Bu adım tamamlandı
+
+---
+
+## ADIM 9 — Demo Veriden Gerçek Veriye Geç
+
+**Ne yapıyoruz?**
+Şu an Dashboard, Randevular, Müşteriler, Personel, Hizmetler, Ödemeler sayfaları hep sahte demo datası gösteriyor. Adım 2'de veritabanı tablolarını oluşturdun. Şimdi sayfaların o tabloları okuyacak şekilde güncellenmesi lazım.
+
+**Bu teknik bir geliştirme işidir.** Kod yazman gerekiyor.
+
+**Sırası:**
+
+Her sayfa için şu değişikliği yapacaksın (veya geliştiricinle yapacaksın):
+
+```
+Şu an: sampleAppointments (sahte data)
+Olması gereken: Supabase'den çekilen gerçek data
 ```
 
-- [ ] Kayıt sırasında yeni kullanıcı için otomatik tenant + profil oluşturan bir Supabase **trigger** veya **Edge Function** yaz.
+**Önce bu sayfaları güncelle:**
+
+1. `src/pages/Appointments.tsx` — Randevular listesi
+2. `src/pages/Customers.tsx` — Müşteriler listesi
+3. `src/pages/Services.tsx` — Hizmetler
+4. `src/pages/Staff.tsx` — Personel
+5. `src/pages/Payments.tsx` — Ödemeler
+6. `src/pages/Dashboard.tsx` — İstatistikler
+
+Her sayfa için bana "Appointments.tsx'i gerçek dataya bağla" dersen birlikte yaparız.
+
+- [ ] Bu adım tamamlandı
 
 ---
 
-## 11. Production Checklist
+## ADIM 10 — Canlıya Almadan Önce Kontrol Listesi
 
-Canlıya almadan önce kontrol listesi:
+Her şey bitti mi? Şunların hepsini kontrol et:
 
-- [ ] Supabase'de "avatars" bucket oluşturuldu
-- [ ] DB migration çalıştırıldı (tablolar oluştu)
-- [ ] RLS politikaları aktif
-- [ ] Vercel env vars ayarlandı (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`)
-- [ ] Sample-data yerine gerçek Supabase query'leri bağlandı (her sayfa için)
-- [ ] Ödeme entegrasyonu test edildi (sandbox)
-- [ ] SMS/e-posta gönderimi test edildi
-- [ ] Custom domain ayarlandı
-- [ ] GDPR/KVKK uyum metinleri eklendi (Gizlilik Politikası, Kullanım Koşulları)
-
----
-
-## 12. Geliştirici Notları
-
-### Sample-data'dan Supabase'e Geçiş
-
-Her sayfa şu an `src/lib/sample-data.ts`'den veri çekiyor.  
-Gerçek veriyi bağlamak için her sayfada şu değişikliği yapacaksın:
-
-```ts
-// ŞU AN (sample-data)
-import { sampleAppointments } from "@/lib/sample-data";
-const appointments = sampleAppointments;
-
-// OLMASI GEREKEN (Supabase + TanStack Query)
-const { data: appointments } = useQuery({
-  queryKey: ["appointments", tenantId],
-  queryFn: () => supabase.from("appointments").select("*, customers(*), staff(*), services(*)").eq("tenant_id", tenantId),
-});
-```
-
-Bu değişikliği önce `Appointments.tsx`'ten başla, sonra diğer sayfalara geç.
+- [ ] Supabase'de `avatars` storage bucket oluşturuldu (Adım 1)
+- [ ] Veritabanı tabloları oluşturuldu: tenants, appointments, customers, services, staff, payments (Adım 2)
+- [ ] Güvenlik kuralları (RLS) aktif (Adım 3)
+- [ ] Vercel'de `VITE_SUPABASE_URL` ve `VITE_SUPABASE_PUBLISHABLE_KEY` tanımlı (Adım 4)
+- [ ] Sayfalar gerçek Supabase verisini gösteriyor — sahte data yok (Adım 9)
+- [ ] Yeni kayıt olan kullanıcıya otomatik işletme oluşturuluyor
+- [ ] Randevu alındığında e-posta gidiyor (Adım 5)
+- [ ] Randevu öncesi SMS hatırlatması çalışıyor (Adım 6)
+- [ ] Ödeme entegrasyonu sandbox'ta test edildi (Adım 7)
+- [ ] Alan adı bağlandı ve SSL aktif (Adım 8)
+- [ ] Gizlilik Politikası ve Kullanım Koşulları sayfaları eklendi
+- [ ] KVKK uyumluluk metni sitede görünüyor
 
 ---
 
-*Bu kılavuz otomatik olarak oluşturulmuştur — Appointify v1.0 kurulum süreci*
+## Sık Sorulan Sorular
+
+**"Supabase'de nereden başlayacağımı bulamıyorum."**
+→ sol menüde en üstte projenin adını göreceksin. Tıkla, ana paneli açılır. Storage, SQL Editor, Authentication hepsi sol menüde.
+
+**"SQL çalıştırdım ama hata aldım."**
+→ Hatayı bana kopyala. Büyük ihtimalle tablo zaten var ya da bir yazım yanlışı var, düzeltiriz.
+
+**"Vercel'de değişken ekledim ama site hâlâ eskisi gibi görünüyor."**
+→ Redeploy yapmayı unutmuş olabilirsin. Adım 4'ün 8-11. adımlarını tekrar yap.
+
+**"Demo data hâlâ görünüyor, gerçek data gelmiyor."**
+→ Adım 9 tamamlanmadı. Sayfaların Supabase'e bağlanması gerekiyor, bu kod değişikliği gerektiriyor.
+
+**"Randevu alındığında e-posta gitmiyor."**
+→ API anahtarını ekledin ama backend fonksiyonunu yazmadın. Bu Adım 5'in ikinci kısmı. Bana haber ver, yapalım.
