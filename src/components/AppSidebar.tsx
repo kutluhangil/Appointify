@@ -8,20 +8,22 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { initials } from "@/lib/format";
+import { useTranslation } from "react-i18next";
 
 export const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: CalendarDays, label: "Randevular", path: "/appointments" },
-  { icon: Users, label: "Müşteriler", path: "/customers" },
-  { icon: Scissors, label: "Hizmetler", path: "/services" },
-  { icon: UserCheck, label: "Personel", path: "/staff" },
-  { icon: CreditCard, label: "Ödemeler", path: "/payments" },
-  { icon: Settings, label: "Ayarlar", path: "/settings" },
+  { icon: LayoutDashboard, labelKey: "nav.dashboard", path: "/dashboard" },
+  { icon: CalendarDays, labelKey: "nav.appointments", path: "/appointments" },
+  { icon: Users, labelKey: "nav.customers", path: "/customers" },
+  { icon: Scissors, labelKey: "nav.services", path: "/services" },
+  { icon: UserCheck, labelKey: "nav.staff", path: "/staff" },
+  { icon: CreditCard, labelKey: "nav.payments", path: "/payments" },
+  { icon: Settings, labelKey: "nav.settings", path: "/settings" },
 ];
 
 export function SidebarContent({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const location = useLocation();
   const { profile, signOut } = useAuth();
+  const { t } = useTranslation();
 
   const userInitials = profile?.full_name ? initials(profile.full_name) : "U";
 
@@ -54,7 +56,7 @@ export function SidebarContent({ collapsed = false, onNavigate }: { collapsed?: 
               )}
             >
               <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && <span>{t(item.labelKey)}</span>}
             </Link>
           );
         })}
@@ -78,7 +80,7 @@ export function SidebarContent({ collapsed = false, onNavigate }: { collapsed?: 
               size="icon"
               onClick={signOut}
               className="text-sidebar-foreground hover:bg-sidebar-accent h-6 w-6"
-              title="Çıkış yap"
+              title={t("nav.logout")}
             >
               <LogOut className="h-3.5 w-3.5" />
             </Button>

@@ -7,302 +7,325 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
-      activity_log: {
+      tenants: {
         Row: {
-          action: string
-          bug_id: string
-          created_at: string
           id: string
-          new_value: string | null
-          old_value: string | null
-          user_id: string
-        }
-        Insert: {
-          action: string
-          bug_id: string
-          created_at?: string
-          id?: string
-          new_value?: string | null
-          old_value?: string | null
-          user_id: string
-        }
-        Update: {
-          action?: string
-          bug_id?: string
-          created_at?: string
-          id?: string
-          new_value?: string | null
-          old_value?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "activity_log_bug_id_fkey"
-            columns: ["bug_id"]
-            isOneToOne: false
-            referencedRelation: "bugs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      attachments: {
-        Row: {
-          bug_id: string
-          created_at: string
-          file_name: string
-          file_path: string
-          file_size: number | null
-          id: string
-          mime_type: string | null
-          user_id: string
-        }
-        Insert: {
-          bug_id: string
-          created_at?: string
-          file_name: string
-          file_path: string
-          file_size?: number | null
-          id?: string
-          mime_type?: string | null
-          user_id: string
-        }
-        Update: {
-          bug_id?: string
-          created_at?: string
-          file_name?: string
-          file_path?: string
-          file_size?: number | null
-          id?: string
-          mime_type?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "attachments_bug_id_fkey"
-            columns: ["bug_id"]
-            isOneToOne: false
-            referencedRelation: "bugs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      bugs: {
-        Row: {
-          actual_behavior: string | null
-          assignee_id: string | null
-          created_at: string
-          description: string
-          environment: string | null
-          expected_behavior: string | null
-          id: string
-          project_id: string | null
-          reporter_id: string
-          severity: Database["public"]["Enums"]["bug_severity"]
-          sla_deadline: string | null
-          status: Database["public"]["Enums"]["bug_status"]
-          steps_to_reproduce: string | null
-          title: string
-          tracking_id: string
-          updated_at: string
-        }
-        Insert: {
-          actual_behavior?: string | null
-          assignee_id?: string | null
-          created_at?: string
-          description?: string
-          environment?: string | null
-          expected_behavior?: string | null
-          id?: string
-          project_id?: string | null
-          reporter_id: string
-          severity?: Database["public"]["Enums"]["bug_severity"]
-          sla_deadline?: string | null
-          status?: Database["public"]["Enums"]["bug_status"]
-          steps_to_reproduce?: string | null
-          title: string
-          tracking_id?: string
-          updated_at?: string
-        }
-        Update: {
-          actual_behavior?: string | null
-          assignee_id?: string | null
-          created_at?: string
-          description?: string
-          environment?: string | null
-          expected_behavior?: string | null
-          id?: string
-          project_id?: string | null
-          reporter_id?: string
-          severity?: Database["public"]["Enums"]["bug_severity"]
-          sla_deadline?: string | null
-          status?: Database["public"]["Enums"]["bug_status"]
-          steps_to_reproduce?: string | null
-          title?: string
-          tracking_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bugs_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      comments: {
-        Row: {
-          bug_id: string
-          content: string
-          created_at: string
-          id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          bug_id: string
-          content: string
-          created_at?: string
-          id?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          bug_id?: string
-          content?: string
-          created_at?: string
-          id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "comments_bug_id_fkey"
-            columns: ["bug_id"]
-            isOneToOne: false
-            referencedRelation: "bugs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      company_settings: {
-        Row: {
-          address: string | null
-          company_logo_url: string | null
-          company_name: string
-          company_size: string | null
-          company_website: string | null
-          created_at: string
-          id: string
+          name: string
+          slug: string
           industry: string | null
           phone: string | null
-          updated_at: string
-          user_id: string
+          email: string | null
+          address: string | null
+          locale: string | null
+          currency: string | null
+          timezone: string | null
+          logo_url: string | null
+          settings: Json | null
+          created_at: string | null
         }
         Insert: {
-          address?: string | null
-          company_logo_url?: string | null
-          company_name?: string
-          company_size?: string | null
-          company_website?: string | null
-          created_at?: string
           id?: string
+          name: string
+          slug: string
           industry?: string | null
           phone?: string | null
-          updated_at?: string
-          user_id: string
+          email?: string | null
+          address?: string | null
+          locale?: string | null
+          currency?: string | null
+          timezone?: string | null
+          logo_url?: string | null
+          settings?: Json | null
+          created_at?: string | null
         }
         Update: {
-          address?: string | null
-          company_logo_url?: string | null
-          company_name?: string
-          company_size?: string | null
-          company_website?: string | null
-          created_at?: string
           id?: string
+          name?: string
+          slug?: string
           industry?: string | null
           phone?: string | null
-          updated_at?: string
-          user_id?: string
+          email?: string | null
+          address?: string | null
+          locale?: string | null
+          currency?: string | null
+          timezone?: string | null
+          logo_url?: string | null
+          settings?: Json | null
+          created_at?: string | null
         }
         Relationships: []
       }
-      invitations: {
+      staff: {
         Row: {
-          created_at: string
-          email: string
-          expires_at: string
           id: string
-          invited_by: string
-          role: Database["public"]["Enums"]["app_role"]
-          status: string
+          tenant_id: string | null
+          user_id: string | null
+          full_name: string
+          title: string | null
+          phone: string | null
+          email: string | null
+          color: string | null
+          is_active: boolean | null
+          created_at: string | null
         }
         Insert: {
-          created_at?: string
-          email: string
-          expires_at?: string
           id?: string
-          invited_by: string
-          role?: Database["public"]["Enums"]["app_role"]
-          status?: string
+          tenant_id?: string | null
+          user_id?: string | null
+          full_name: string
+          title?: string | null
+          phone?: string | null
+          email?: string | null
+          color?: string | null
+          is_active?: boolean | null
+          created_at?: string | null
         }
         Update: {
-          created_at?: string
-          email?: string
-          expires_at?: string
           id?: string
-          invited_by?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          status?: string
+          tenant_id?: string | null
+          user_id?: string | null
+          full_name?: string
+          title?: string | null
+          phone?: string | null
+          email?: string | null
+          color?: string | null
+          is_active?: boolean | null
+          created_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "staff_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          }
+        ]
       }
-      notification_preferences: {
+      services: {
         Row: {
-          created_at: string
-          daily_digest: boolean
-          email_on_assignment: boolean
-          email_on_comment: boolean
-          email_on_new_bug: boolean
-          email_on_sla_breach: boolean
-          email_on_status_change: boolean
           id: string
-          updated_at: string
-          user_id: string
+          tenant_id: string | null
+          name: string
+          description: string | null
+          duration_min: number
+          price: number | null
+          currency: string | null
+          color: string | null
+          is_active: boolean | null
+          created_at: string | null
         }
         Insert: {
-          created_at?: string
-          daily_digest?: boolean
-          email_on_assignment?: boolean
-          email_on_comment?: boolean
-          email_on_new_bug?: boolean
-          email_on_sla_breach?: boolean
-          email_on_status_change?: boolean
           id?: string
-          updated_at?: string
-          user_id: string
+          tenant_id?: string | null
+          name: string
+          description?: string | null
+          duration_min?: number
+          price?: number | null
+          currency?: string | null
+          color?: string | null
+          is_active?: boolean | null
+          created_at?: string | null
         }
         Update: {
-          created_at?: string
-          daily_digest?: boolean
-          email_on_assignment?: boolean
-          email_on_comment?: boolean
-          email_on_new_bug?: boolean
-          email_on_sla_breach?: boolean
-          email_on_status_change?: boolean
           id?: string
-          updated_at?: string
-          user_id?: string
+          tenant_id?: string | null
+          name?: string
+          description?: string | null
+          duration_min?: number
+          price?: number | null
+          currency?: string | null
+          color?: string | null
+          is_active?: boolean | null
+          created_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "services_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      customers: {
+        Row: {
+          id: string
+          tenant_id: string | null
+          full_name: string
+          phone: string | null
+          email: string | null
+          tag: string | null
+          notes: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string | null
+          full_name: string
+          phone?: string | null
+          email?: string | null
+          tag?: string | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          tenant_id?: string | null
+          full_name?: string
+          phone?: string | null
+          email?: string | null
+          tag?: string | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      appointments: {
+        Row: {
+          id: string
+          tenant_id: string | null
+          customer_id: string | null
+          staff_id: string | null
+          service_id: string | null
+          starts_at: string
+          ends_at: string
+          status: string | null
+          notes: string | null
+          price: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string | null
+          customer_id?: string | null
+          staff_id?: string | null
+          service_id?: string | null
+          starts_at: string
+          ends_at: string
+          status?: string | null
+          notes?: string | null
+          price?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          tenant_id?: string | null
+          customer_id?: string | null
+          staff_id?: string | null
+          service_id?: string | null
+          starts_at?: string
+          ends_at?: string
+          status?: string | null
+          notes?: string | null
+          price?: number | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      payments: {
+        Row: {
+          id: string
+          tenant_id: string | null
+          appointment_id: string | null
+          customer_id: string | null
+          amount: number
+          currency: string | null
+          method: string | null
+          status: string | null
+          paid_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string | null
+          appointment_id?: string | null
+          customer_id?: string | null
+          amount: number
+          currency?: string | null
+          method?: string | null
+          status?: string | null
+          paid_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          tenant_id?: string | null
+          appointment_id?: string | null
+          customer_id?: string | null
+          amount?: number
+          currency?: string | null
+          method?: string | null
+          status?: string | null
+          paid_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       profiles: {
         Row: {
@@ -313,6 +336,8 @@ export type Database = {
           job_title: string | null
           updated_at: string
           user_id: string
+          tenant_id: string | null
+          role: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -322,6 +347,8 @@ export type Database = {
           job_title?: string | null
           updated_at?: string
           user_id: string
+          tenant_id?: string | null
+          role?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -331,87 +358,28 @@ export type Database = {
           job_title?: string | null
           updated_at?: string
           user_id?: string
+          tenant_id?: string | null
+          role?: string | null
         }
-        Relationships: []
-      }
-      projects: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          description: string | null
-          id: string
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      user_roles: {
-        Row: {
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      get_team_members: {
-        Args: never
-        Returns: {
-          avatar_url: string
-          full_name: string
-          job_title: string
-          role: string
-          user_id: string
-        }[]
-      }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
-      bug_severity: "critical" | "high" | "medium" | "low"
-      bug_status:
-        | "new"
-        | "assigned"
-        | "in_progress"
-        | "testing"
-        | "resolved"
-        | "closed"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -538,17 +506,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["admin", "moderator", "user"],
-      bug_severity: ["critical", "high", "medium", "low"],
-      bug_status: [
-        "new",
-        "assigned",
-        "in_progress",
-        "testing",
-        "resolved",
-        "closed",
-      ],
-    },
+    Enums: {},
   },
 } as const

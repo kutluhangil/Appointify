@@ -18,7 +18,7 @@ import Settings from "./pages/Settings";
 import BookingPublic from "./pages/BookingPublic";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+import { queryClient } from "@/config/queryClient";
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>

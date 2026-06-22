@@ -1,67 +1,140 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Star, TrendingUp, CalendarDays } from "lucide-react";
-import { sampleStaff, sampleAppointments, sampleServices } from "@/lib/sample-data";
+import { Plus, Star, TrendingUp, CalendarDays, Loader2 } from "lucide-react";
+import { useStaff } from "@/hooks/useStaff";
+import { useAppointments } from "@/hooks/useAppointments";
 import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
+import { Tables } from "@/integrations/supabase/types";
+import { useTranslation } from "react-i18next";
+
+type StaffMember = Tables<"staff">;
 
 const WORKING_HOURS = [
-  { day: "Pazartesi", open: true, start: "09:00", end: "18:00" },
-  { day: "Salı",      open: true, start: "09:00", end: "18:00" },
-  { day: "Çarşamba",  open: true, start: "09:00", end: "18:00" },
-  { day: "Perşembe",  open: true, start: "09:00", end: "18:00" },
-  { day: "Cuma",      open: true, start: "09:00", end: "18:00" },
-  { day: "Cumartesi", open: true, start: "10:00", end: "17:00" },
-  { day: "Pazar",     open: false, start: "—",     end: "—" },
+  { dayKey: "common.day_monday",    defaultDay: "Pazartesi", open: true, start: "09:00", end: "18:00" },
+  { dayKey: "common.day_tuesday",   defaultDay: "Salı",      open: true, start: "09:00", end: "18:00" },
+  { dayKey: "common.day_wednesday", defaultDay: "Çarşamba",  open: true, start: "09:00", end: "18:00" },
+  { dayKey: "common.day_thursday",  defaultDay: "Perşembe",  open: true, start: "09:00", end: "18:00" },
+  { dayKey: "common.day_friday",    defaultDay: "Cuma",      open: true, start: "09:00", end: "18:00" },
+  { dayKey: "common.day_saturday",  defaultDay: "Cumartesi", open: true, start: "10:00", end: "17:00" },
+  { dayKey: "common.day_sunday",    defaultDay: "Pazar",     open: false, start: "—",     end: "—" },
 ];
 
 const STAFF_COLORS = ["#a78bfa", "#34d399", "#f472b6", "#60a5fa", "#fbbf24", "#fb923c"];
 
 export default function Staff() {
+  const { t } = useTranslation();
   const { toast } = useToast();
-  const [selected, setSelected] = useState<typeof sampleStaff[0] | null>(null);
-  const [staffList, setStaffList] = useState(sampleStaff);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState({ name: "", specialties: "" });
+  const { staff, isLoading: loadingStaff, createStaff } = useStaff();
+  const { appointments, isLoading: loadingAppts } = useAppointments();
 
-  const handleAddStaff = () => {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState({ name: "", title: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const selected = useMemo(() => {
+    return staff.find(s => s.id === selectedId) || null;
+  }, [selectedId, staff]);
+
+  const handleAddStaff = async () => {
     if (!addForm.name) return;
-    const newStaff = {
-      id: `s${Date.now()}`,
-      name: addForm.name,
-      avatar_url: "",
-      specialties: addForm.specialties.split(",").map(s => s.trim()).filter(Boolean),
-      color: STAFF_COLORS[staffList.length % STAFF_COLORS.length],
-    };
-    setStaffList(prev => [...prev, newStaff]);
-    setAddForm({ name: "", specialties: "" });
-    setIsAddOpen(false);
-    toast({ title: "Personel eklendi", description: `${addForm.name} başarıyla eklendi.` });
+    setIsSubmitting(true);
+    try {
+      const color = STAFF_COLORS[staff.length % STAFF_COLORS.length];
+      await createStaff({
+        full_name: addForm.name,
+        title: addForm.title || null,
+        color,
+        is_active: true,
+      });
+      setAddForm({ name: "", title: "" });
+      setIsAddOpen(false);
+      toast({
+        title: t("staff.add_success"),
+        description: t("staff.add_success_desc", { name: addForm.name, defaultValue: `${addForm.name} başarıyla eklendi.` })
+      });
+    } catch (err: any) {
+      toast({
+        title: t("common.error_adding", { defaultValue: "Personel eklenemedi" }),
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const staffWithStats = staffList.map(s => {
-    const apts = sampleAppointments.filter(a => a.staff_id === s.id);
-    const completed = apts.filter(a => a.status === "completed");
-    const revenue = completed.reduce((sum, a) => sum + a.price, 0);
-    const topService = sampleServices.reduce((best, svc) => {
-      const cnt = apts.filter(a => a.service_id === svc.id).length;
-      return cnt > (best?.cnt ?? 0) ? { svc, cnt } : best;
-    }, null as { svc: typeof sampleServices[0]; cnt: number } | null);
-    return { ...s, totalApts: apts.length, completedApts: completed.length, revenue, topService };
-  });
+  const staffWithStats = useMemo(() => {
+    return staff.map(s => {
+      const apts = appointments.filter(a => a.staff_id === s.id);
+      const completed = apts.filter(a => a.status === "completed");
+      const revenue = completed.reduce((sum, a) => sum + Number(a.price || 0), 0);
+
+      // Find top service by appointment count
+      const serviceCounts: Record<string, { name: string; count: number }> = {};
+      apts.forEach(apt => {
+        if (!apt.service_id || !apt.service) return;
+        if (!serviceCounts[apt.service_id]) {
+          serviceCounts[apt.service_id] = { name: apt.service.name, count: 0 };
+        }
+        serviceCounts[apt.service_id].count += 1;
+      });
+
+      const topService = Object.values(serviceCounts).reduce(
+        (best, curr) => (curr.count > (best?.count ?? 0) ? curr : best),
+        null as { name: string; count: number } | null
+      );
+
+      return {
+        ...s,
+        totalApts: apts.length,
+        completedApts: completed.length,
+        revenue,
+        topService,
+      };
+    });
+  }, [staff, appointments]);
+
+  const selectedStaffStats = useMemo(() => {
+    if (!selectedId) return null;
+    return staffWithStats.find(x => x.id === selectedId) || null;
+  }, [selectedId, staffWithStats]);
+
+  const totalCompletedApts = useMemo(() => {
+    return appointments.filter(a => a.status === "completed").length;
+  }, [appointments]);
+
+  const totalRevenue = useMemo(() => {
+    return appointments
+      .filter(a => a.status === "completed")
+      .reduce((sum, a) => sum + Number(a.price || 0), 0);
+  }, [appointments]);
+
+  const isLoading = loadingStaff || loadingAppts;
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-[calc(100vh-3rem)] items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between px-4 md:px-6 h-12 border-b border-border shrink-0">
-          <h1 className="text-[13px] font-medium">Personel</h1>
+          <h1 className="text-[13px] font-medium">{t("staff.title")}</h1>
           <Button size="sm" className="h-7 text-[12px] gap-1.5" onClick={() => setIsAddOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Personel Ekle
+            <Plus className="h-3.5 w-3.5" /> {t("staff.add")}
           </Button>
         </div>
 
@@ -71,10 +144,10 @@ export default function Staff() {
             {/* Summary */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border rounded-xl overflow-hidden">
               {[
-                { label: "Toplam Personel", value: staffList.length },
-                { label: "Aktif Personel", value: staffList.length },
-                { label: "Toplam Randevu", value: sampleAppointments.length },
-                { label: "Tamamlanan Gelir", value: formatCurrency(sampleAppointments.filter(a => a.status === "completed").reduce((s, a) => s + a.price, 0)) },
+                { label: t("staff.total"), value: staff.length },
+                { label: t("staff.active"), value: staff.filter(s => s.is_active).length },
+                { label: t("staff.appointments"), value: appointments.length },
+                { label: t("staff.revenue"), value: formatCurrency(totalRevenue) },
               ].map((s, i) => (
                 <div key={i} className="bg-card p-4">
                   <p className="text-[11px] text-muted-foreground">{s.label}</p>
@@ -88,43 +161,45 @@ export default function Staff() {
               {staffWithStats.map((s) => (
                 <button
                   key={s.id}
-                  onClick={() => setSelected(s)}
+                  onClick={() => setSelectedId(s.id)}
                   className="text-left border border-border rounded-xl bg-card p-5 hover:border-foreground/20 transition-colors"
                 >
                   <div className="flex items-center gap-3 mb-4">
                     <div
                       className="h-12 w-12 rounded-full flex items-center justify-center text-[16px] font-semibold text-white shrink-0"
-                      style={{ background: s.color }}
+                      style={{ background: s.color || "#6366f1" }}
                     >
-                      {s.name.split(" ").map(n => n[0]).join("").slice(0,2)}
+                      {s.full_name.split(" ").map(n => n[0]).join("").slice(0,2)}
                     </div>
                     <div>
-                      <p className="font-semibold text-[14px]">{s.name}</p>
-                      <p className="text-[12px] text-muted-foreground">
-                        {s.specialties.slice(0,2).join(", ")}
-                      </p>
+                      <p className="font-semibold text-[14px]">{s.full_name}</p>
+                      {s.title && (
+                        <p className="text-[12px] text-muted-foreground">
+                          {s.title}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="border border-border rounded-lg p-2">
                       <p className="text-[15px] font-semibold">{s.totalApts}</p>
-                      <p className="text-[10px] text-muted-foreground">Randevu</p>
+                      <p className="text-[10px] text-muted-foreground">{t("dashboard.appointments_count")}</p>
                     </div>
                     <div className="border border-border rounded-lg p-2">
                       <p className="text-[15px] font-semibold">{s.completedApts}</p>
-                      <p className="text-[10px] text-muted-foreground">Tamamlandı</p>
+                      <p className="text-[10px] text-muted-foreground">{t("staff.completed")}</p>
                     </div>
                     <div className="border border-border rounded-lg p-2">
                       <p className="text-[13px] font-semibold">{formatCurrency(s.revenue)}</p>
-                      <p className="text-[10px] text-muted-foreground">Gelir</p>
+                      <p className="text-[10px] text-muted-foreground">{t("staff.revenue_label")}</p>
                     </div>
                   </div>
 
                   {s.topService && (
                     <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      <Star className="h-3 w-3" />
-                      <span>En çok: {s.topService.svc.name_tr} ({s.topService.cnt}x)</span>
+                      <Star className="h-3 w-3 text-yellow-500" />
+                      <span>{t("staff.top_service")}: {s.topService.name} ({s.topService.count}x)</span>
                     </div>
                   )}
                 </button>
@@ -136,7 +211,7 @@ export default function Staff() {
                 className="border border-dashed border-border rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-foreground/30 hover:bg-muted/20 transition-colors min-h-[180px]"
               >
                 <Plus className="h-6 w-6 text-muted-foreground" />
-                <span className="text-[13px] text-muted-foreground">Yeni personel ekle</span>
+                <span className="text-[13px] text-muted-foreground">{t("staff.add_placeholder")}</span>
               </button>
             </div>
           </div>
@@ -147,11 +222,11 @@ export default function Staff() {
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Yeni Personel</DialogTitle>
+            <DialogTitle>{t("staff.new_title")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <Label className="text-[12px]">Ad Soyad *</Label>
+              <Label className="text-[12px]">{t("staff.name_label")}</Label>
               <Input
                 value={addForm.name}
                 onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
@@ -160,92 +235,91 @@ export default function Staff() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[12px]">Uzmanlık Alanları</Label>
+              <Label className="text-[12px]">{t("staff.title_label")}</Label>
               <Input
-                value={addForm.specialties}
-                onChange={e => setAddForm(f => ({ ...f, specialties: e.target.value }))}
-                placeholder="Saç kesimi, Boyama (virgülle ayırın)"
+                value={addForm.title}
+                onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="Saç Kesim & Sakal Uzmanı"
                 className="h-9 text-[13px]"
               />
-              <p className="text-[11px] text-muted-foreground">Virgülle ayrılmış uzmanlık alanları</p>
             </div>
           </div>
           <DialogFooter className="mt-2">
-            <Button variant="outline" size="sm" onClick={() => setIsAddOpen(false)}>İptal</Button>
-            <Button size="sm" onClick={handleAddStaff} disabled={!addForm.name}>
-              Kaydet
+            <Button variant="outline" size="sm" onClick={() => setIsAddOpen(false)}>{t("staff.cancel")}</Button>
+            <Button size="sm" onClick={handleAddStaff} disabled={isSubmitting || !addForm.name}>
+              {isSubmitting && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+              {t("staff.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Staff detail sheet */}
-      <Sheet open={!!selected} onOpenChange={() => setSelected(null)}>
+      <Sheet open={!!selected} onOpenChange={() => setSelectedId(null)}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-          {selected && (() => {
-            const s = staffWithStats.find(x => x.id === selected.id)!;
-            return (
-              <>
-                <SheetHeader>
-                  <SheetTitle>
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="h-12 w-12 rounded-full flex items-center justify-center text-[16px] font-semibold text-white"
-                        style={{ background: s.color }}
-                      >
-                        {s.name.split(" ").map(n => n[0]).join("").slice(0,2)}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-[15px]">{s.name}</p>
-                        <p className="text-[12px] text-muted-foreground font-normal">{s.specialties.join(", ")}</p>
-                      </div>
+          {selected && selectedStaffStats && (
+            <>
+              <SheetHeader>
+                <SheetTitle>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="h-12 w-12 rounded-full flex items-center justify-center text-[16px] font-semibold text-white"
+                      style={{ background: selected.color || "#6366f1" }}
+                    >
+                      {selected.full_name.split(" ").map(n => n[0]).join("").slice(0,2)}
                     </div>
-                  </SheetTitle>
-                </SheetHeader>
+                    <div>
+                      <p className="font-semibold text-[15px]">{selected.full_name}</p>
+                      {selected.title && (
+                        <p className="text-[12px] text-muted-foreground font-normal">{selected.title}</p>
+                      )}
+                    </div>
+                  </div>
+                </SheetTitle>
+              </SheetHeader>
 
-                <div className="mt-6 space-y-6">
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: "Toplam Randevu", value: s.totalApts, icon: CalendarDays },
-                      { label: "Tamamlandı", value: s.completedApts, icon: TrendingUp },
-                      { label: "Gelir", value: formatCurrency(s.revenue), icon: Star },
-                    ].map((stat, i) => (
-                      <div key={i} className="border border-border rounded-lg p-3 text-center">
-                        <stat.icon className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
-                        <p className="text-[14px] font-semibold">{stat.value}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{stat.label}</p>
+              <div className="mt-6 space-y-6">
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: t("staff.appointments"), value: selectedStaffStats.totalApts, icon: CalendarDays },
+                    { label: t("staff.completed"), value: selectedStaffStats.completedApts, icon: TrendingUp },
+                    { label: t("staff.revenue_label"), value: formatCurrency(selectedStaffStats.revenue), icon: Star },
+                  ].map((stat, i) => (
+                    <div key={i} className="border border-border rounded-lg p-3 text-center">
+                      <stat.icon className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
+                      <p className="text-[14px] font-semibold">{stat.value}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium mb-3">{t("staff.working_hours")}</p>
+                  <div className="space-y-1.5">
+                    {WORKING_HOURS.map((wh) => (
+                      <div key={wh.dayKey} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+                        <span className="text-[13px] font-medium w-24">{t(wh.dayKey, { defaultValue: wh.defaultDay })}</span>
+                        {wh.open ? (
+                          <span className="text-[12px] text-muted-foreground">{wh.start} – {wh.end}</span>
+                        ) : (
+                          <span className="text-[12px] text-red-500">{t("staff.closed")}</span>
+                        )}
                       </div>
                     ))}
                   </div>
-
-                  <div>
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium mb-3">Çalışma Saatleri</p>
-                    <div className="space-y-1.5">
-                      {WORKING_HOURS.map((wh) => (
-                        <div key={wh.day} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
-                          <span className="text-[13px] font-medium w-24">{wh.day}</span>
-                          {wh.open ? (
-                            <span className="text-[12px] text-muted-foreground">{wh.start} – {wh.end}</span>
-                          ) : (
-                            <span className="text-[12px] text-red-500">Kapalı</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium mb-3">Uzmanlık Alanları</p>
-                    <div className="flex flex-wrap gap-2">
-                      {s.specialties.map(sp => (
-                        <span key={sp} className="px-2.5 py-1 bg-muted rounded-full text-[12px] font-medium">{sp}</span>
-                      ))}
-                    </div>
-                  </div>
                 </div>
-              </>
-            );
-          })()}
+
+                {selected.title && (
+                  <div>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium mb-3">{t("common.specialties", { defaultValue: "Uzmanlık Alanları" })}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="px-2.5 py-1 bg-muted rounded-full text-[12px] font-medium">{selected.title}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </SheetContent>
       </Sheet>
     </AppLayout>

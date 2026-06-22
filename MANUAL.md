@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   currency     TEXT DEFAULT 'TRY',
   timezone     TEXT DEFAULT 'Europe/Istanbul',
   logo_url     TEXT,
+  settings     JSONB DEFAULT '{}'::jsonb,
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
