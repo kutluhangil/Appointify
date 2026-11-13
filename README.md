@@ -107,7 +107,7 @@ npm run type-check
 npm run build
 ```
 
-`.env` takes `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. The Edge Functions read their own secrets: `STRIPE_SECRET_KEY`, `RESEND_API_KEY`, `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_PHONE_NUMBER` or `NETGSM_USERCODE` / `NETGSM_PASSWORD` / `NETGSM_MSGHEADER`.
+`.env` takes `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (or `VITE_SUPABASE_ANON_KEY`), plus `VITE_APP_URL`, `VITE_DEFAULT_LOCALE` and an optional `VITE_STRIPE_PUBLISHABLE_KEY`. The Edge Functions read their own secrets: `STRIPE_SECRET_KEY`, `RESEND_API_KEY`, `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_PHONE_NUMBER` or `NETGSM_USERCODE` / `NETGSM_PASSWORD` / `NETGSM_MSGHEADER`.
 
 ```
 src/pages/            Landing, Auth, BookingPublic, Dashboard, Appointments, Customers, Services, Staff, Payments, Settings
